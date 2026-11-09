@@ -9,6 +9,8 @@ metadata:
 
 # Text Fitting (rem-based, container-aware)
 
+A skill for **Pi** and **Gentle Shell** agents. Load it when you size or fit text in a web UI; the UI itself can be built with any framework.
+
 Runtime contract for fluid, accessible, overflow-safe typography in any web UI: Astro, React, Vue, Svelte, and plain HTML, plus global CSS and Tailwind. Nothing in the measuring rules is framework-specific — the only framework-coupled parts are the container-query and token-scale examples, which map one-to-one to any CSS pipeline.
 
 ## Activation Contract
