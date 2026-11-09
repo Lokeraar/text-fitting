@@ -9,10 +9,27 @@ npm install   # once — installs puppeteer-core only (~25 pkgs, no Chromium dow
 node verify.js
 ```
 
-The script drives the system Chrome (`C:/Program Files/Google/Chrome/Application/chrome.exe`)
-headlessly, loads `../preview.html`, and asserts every behaviour the skill documents.
+The script finds the system browser by itself (Chrome, Chromium or Edge on Linux,
+macOS or Windows), loads `../preview.html` relative to its own location, and asserts
+every behaviour the skill documents.
 Exit code `0` = all checks passed; `1` = at least one failed; `2` = the harness itself
 could not run (missing browser, wrong path).
+
+### Point it at a different browser
+
+Nothing is hardcoded to one machine. Three ways, in order of precedence:
+
+```bash
+node verify.js /ruta/a/chrome        # 1. explicit path as an argument
+CHROME_PATH=/ruta/a/chrome node verify.js   # 2. environment variable
+node verify.js                       # 3. auto-detect (the usual case)
+```
+
+Auto-detection covers the standard locations on Linux (`/usr/bin/google-chrome`,
+`/usr/bin/chromium`, `/snap/bin/chromium`), macOS (`/Applications/Google Chrome.app/...`)
+and Windows (Program Files, both flavours, plus the per-user install under
+`%LOCALAPPDATA%`). If none is found, the error lists what it tried and how to pass
+the path.
 
 ## Why a single file
 

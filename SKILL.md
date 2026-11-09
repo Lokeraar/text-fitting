@@ -1,23 +1,25 @@
 ---
-name: astro-text-fitting
-description: "Trigger: fluid typography, fit text to container, clamp font-size, Astro text overflow, container query headings, responsive font-size, card title fitting, auto-fit text to N lines, shrink-to-fit title, fill a box with text, text fitting por capacidad, autoajustar letra, un solo tamaño en la celda, tamaño consistente de texto, fila de tabla con varias piezas. Enforces senior, accessible, overflow-safe text fitting in .astro components, global CSS, and Tailwind: rem-based clamp(), container queries, and line clamping for free-flowing type; declared-line-capacity auto-fit (mirror div, binary search, floor, per-role strategy) for text that must fill exactly N lines. A cell with several spans inherits one size; hierarchy comes from color and weight, never from a child font-size or a rem clamp floor. Ceilings are height-based in em on the text node, because line-clamp on a parent of a block counts nothing. Forbids fixed px/pt sizes, vw-only values, per-frame resize fitters, and clipping in place of a capacity decision."
+name: text-fitting
+description: "Trigger: fluid typography, fit text to container, clamp font-size, text overflow, container query headings, responsive font-size, card title fitting, auto-fit text to N lines, shrink-to-fit title, fill a box with text, text fitting por capacidad, autoajustar letra, un solo tamaño en la celda, tamaño consistente de texto, fila de tabla con varias piezas. Enforces senior, accessible, overflow-safe text fitting in ANY web UI —Astro, React, Vue, Svelte, and plain HTML— plus global CSS and Tailwind: rem-based clamp(), container queries, and line clamping for free-flowing type; declared-line-capacity auto-fit (mirror div, binary search, floor, per-role strategy) for text that must fill exactly N lines. A cell with several spans inherits one size; hierarchy comes from color and weight, never from a child font-size or a rem clamp floor. Ceilings are height-based in em on the text node, because line-clamp on a parent of a block counts nothing. Forbids fixed px/pt sizes, vw-only values, per-frame resize fitters, and clipping in place of a capacity decision."
 license: Apache-2.0
 metadata:
   author: gentleman-programming
-  version: "1.1"
+  version: "2.0"
 ---
 
-# Astro Text-Fitting (rem-based, container-aware)
+# Text Fitting (rem-based, container-aware)
 
-Runtime contract for fluid, accessible, overflow-safe typography in Astro components and global CSS/Tailwind.
+Runtime contract for fluid, accessible, overflow-safe typography in any web UI: Astro, React, Vue, Svelte, and plain HTML, plus global CSS and Tailwind. Nothing in the measuring rules is framework-specific — the only framework-coupled parts are the container-query and token-scale examples, which map one-to-one to any CSS pipeline.
 
 ## Activation Contract
 
-Use this skill when sizing or fitting text in `.astro` component `<style>` blocks, global CSS, or Tailwind: page headings, card/island titles, dynamic-length strings, any text that must self-fit its box.
+Use this skill when sizing or fitting text in any component's style block (`.astro`, `.jsx`/`.tsx`, `.vue`, `.svelte`), global CSS, or Tailwind: page headings, card/island titles, dynamic-length strings, any text that must self-fit its box.
+
+The measuring rules (rule 8) are pure DOM arithmetic and work unchanged in every framework. Framework-specific advice is confined to the container-query and token-scale examples, which translate directly to any CSS pipeline — React/Vue/Svelte style blocks accept the same declarations.
 
 Do NOT activate it for: print stylesheets, fixed-density kiosk UIs, SVG/canvas text, or any case where the design mandates a physical unit.
 
-Scope: `.astro` components, global CSS/Tailwind tokens, and any component whose text has a declared line capacity. Two paths: **fluid CSS** (`clamp()` + container queries + `line-clamp`) for free-flowing type, and **measured auto-fit** (rule 8) for text that must fill exactly N lines. Never a `resize` listener; one fit per content change.
+Scope: any component with a style block or utility classes, global CSS/Tailwind tokens, and any component whose text has a declared line capacity. Two paths: **fluid CSS** (`clamp()` + container queries + `line-clamp`) for free-flowing type, and **measured auto-fit** (rule 8) for text that must fill exactly N lines. Never a `resize` listener; one fit per content change.
 
 ## Hard Rules
 
@@ -116,7 +118,7 @@ Scope: `.astro` components, global CSS/Tailwind tokens, and any component whose 
      | `letters` | largest size wins, even if it spends the grace line | box height is free: titles, descriptions, hero copy |
      | `lines` | shortest capacity that fits wins; shrink to the floor before growing | row height is the scarce resource: table rows stacked one under another |
 
-     Measured on one real row (105 px column, «Salmón fresco (define el plato) 0.24 Kg»): `letters` gives **21 px across 4 lines**, `lines` gives **16 px across 3**. Both are defensible; only one is right per design.
+     Measured on one real row (105 px column, «Atlantic salmon (base ingredient) 0.24 Kg»): `letters` gives **21 px across 4 lines**, `lines` gives **16 px across 3**. Both are defensible; only one is right per design.
 
      **Do not hardcode either one globally.** Put the strategy on the role declaration, next to the ceiling and the capacity. A single global choice is always wrong for one half of the screen: `letters` everywhere makes table rows grow for half a point and push the footer off-screen; `lines` everywhere drops a 32 px title to 21 px to save a line the layout never needed.
 
@@ -140,7 +142,7 @@ Scope: `.astro` components, global CSS/Tailwind tokens, and any component whose 
      const hardMax = Math.min(capacity.maxLines, capacity.lines + 1);
      ```
      A role whose cell holds several distinct data items (name + badge + unit + price) is a **declared capacity**, not a grace line — mark it explicitly, and say so in a comment. Otherwise a caller asking for two grace lines silently reintroduces the problem.
-   - **Re-fit on every content mutation, not only on open.** Fitting runs once when the box is painted, so any text written LATER —a price surcharge (`+Bs. 5 en este plato`), a state label, a unit that changes to `×2`, a validation message— enters unmeasured and gets clipped by the clamp. The defect is invisible in the static case and appears exactly when the user interacts, which is when it matters most.
+   - **Re-fit on every content mutation, not only on open.** Fitting runs once when the box is painted, so any text written LATER —a price surcharge (`+$5 for this item`), a state label, a unit that changes to `×2`, a validation message— enters unmeasured and gets clipped by the clamp. The defect is invisible in the static case and appears exactly when the user interacts, which is when it matters most.
      Hook the re-fit at the END of the function that repaints the row, never at each call site: one repaint path, one re-fit, and a future state change cannot forget it.
      ```js
      function paintRow(i) { /* ...writes text... */  requestFit(); }
@@ -167,16 +169,16 @@ Scope: `.astro` components, global CSS/Tailwind tokens, and any component whose 
      `em`, not `px`, because the fitter writes `font-size` on that same node: the ceiling recomputes itself and there is no second number to desynchronize. A pixel ceiling must be rewritten on every pass, which couples the two layers — that path was tried and reverted.
 
      **`overflow: hidden` does not lie to `scrollHeight`:** it lets the content overflow the box while `scrollHeight` still reports the full height. That is why height ceilings are safe to measure through and `line-clamp` is not — `line-clamp` destroys the content and the fitter goes blind. Neutralize the `max-height` while measuring and restore it on every exit path.
-   - **Consistency rule: never produce a patchwork of sizes on one line.** When several strings share a row by layout (table column headers such as Quitar / Actualmente / Agrandar, inline chips, price + unit), compute the size required by the MOST restrictive one and apply it to all of them. One row, one size.
+   - **Consistency rule: never produce a patchwork of sizes on one line.** When several strings share a row by layout (table column headers such as Remove / Current / Add more, inline chips, price + unit), compute the size required by the MOST restrictive one and apply it to all of them. One row, one size.
 
-     **And that rule must reach INSIDE a cell, not just across it.** One cell often holds several spans: a product name, a badge («(define el plato)»), a unit of measure, a surcharge. If any of them carries its own `font-size` — including a `clamp()` with a `rem` floor — it stops shrinking while the parent keeps going, and the cell mixes sizes nobody chose.
+     **And that rule must reach INSIDE a cell, not just across it.** One cell often holds several spans: a product name, a badge («base ingredient»), a unit of measure, a surcharge. If any of them carries its own `font-size` — including a `clamp()` with a `rem` floor — it stops shrinking while the parent keeps going, and the cell mixes sizes nobody chose.
 
      Measured: a name pushed to 8 pt (10.67 px) beside a unit pinned at its `clamp(.8125rem, .82em, 1.0625rem)` floor of 13 px. The secondary line rendered **22 % LARGER than the primary text it belongs to**, and spent an extra line box doing it.
 
      The fix is `font-size: inherit` on every child; hierarchy comes from color and weight, which consume no space. Reserve a child `font-size` for a child that must NOT follow, and say why in a comment.
 
      **Beware a `rem` `clamp()` inside a fitted cell.** `rem` resolves against the root, so a `rem` floor in a span does not scale with the fitted parent, and `line-height` resolved per element makes the real line box taller than the fitter's arithmetic: the fitter believes 4 × 13.3 px, the browser renders 4 × 16.3 px, and «it fits» ends with the parent clipping.
-   - **`white-space: nowrap` on a secondary phrase steals a whole line.** With a ~105 px column at 10.67 px, about 19 characters fit per line. «Salmón fresco» uses 13 and leaves 6 free, but an 18-character phrase that cannot break starts the NEXT line and leaves the first nearly empty: five lines where four were budgeted. The waste is not caused by the long text; it is caused by a short phrase refusing to split.
+   - **`white-space: nowrap` on a secondary phrase steals a whole line.** With a ~105 px column at 10.67 px, about 19 characters fit per line. «Atlantic salmon» uses 15 and leaves 4 free, but an 18-character phrase that cannot break starts the NEXT line and leaves the first nearly empty: five lines where four were budgeted. The waste is not caused by the long text; it is caused by a short phrase refusing to split.
 
      Keep `nowrap` only for atomic data («0.24 Kg», a price, a currency amount), where splitting would change meaning. Let narrative labels break between words — never `break-all`, never inside a number.
    - Measure a hidden **mirror `<div>`**, never the `<textarea>`/target itself. A textarea is a replaced element with its own internal scrolling; with `overflow: hidden` many engines report `scrollHeight === clientHeight`, so a shrink loop keyed on the textarea never fires.
@@ -227,7 +229,7 @@ Scope: `.astro` components, global CSS/Tailwind tokens, and any component whose 
 
 ## Output Contract
 
-Return: the CSS/`.astro` files changed, the fluid tokens used or added, the verification performed (resize + font-size at the 500% Chromium ceiling), every place `px`/`pt` was converted, and any residual overflow risk or accessibility caveat. For bounded widgets, also return the designated space (field width + N lines), the legibility floor, and the character capacity derived from them.
+Return: the style files changed (`.astro`, `.jsx`/`.tsx`, `.vue`, `.svelte`, `.css` or Tailwind), the fluid tokens used or added, the verification performed (resize + font-size at the 500% Chromium ceiling), every place `px`/`pt` was converted, and any residual overflow risk or accessibility caveat. For bounded widgets, also return the designated space (field width + N lines), the legibility floor, and the character capacity derived from them.
 
 For any text with several spans in one cell, also return: the single size chosen, which spans inherit it, and which (if any) keep their own and why. For any row with a height ceiling, name the strategy (`letters` / `lines`) and who decided it.
 

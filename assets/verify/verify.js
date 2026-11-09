@@ -16,9 +16,83 @@
  * Consolidation is the guarantee of completeness; the run is the proof.
  */
 const puppeteer = require('puppeteer-core');
+const path = require('path');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
 
-const PREVIEW = 'file:///C:/Users/Ramirez%20Moreno/.pi/agent/skills/astro-text-fitting/assets/preview.html';
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+// ── EL PREVIEW SE RESUELVE CONTRA ESTE ARCHIVO, NO CONTRA UNA MÁQUINA ──
+//
+// Antes era una ruta absoluta a la máquina de quien escribió la skill. Eso
+// funcionaba exactamente en un equipo: en cualquier otro, `node verify.js`
+// moría con «file not found» y el repo era inútil para quien lo clonara.
+// Resolverlo contra `__dirname` lo hace correcto en cualquier sistema, en
+// cualquier ruta, con cualquier nombre de usuario.
+const PREVIEW = pathToFileURL(path.join(__dirname, '..', 'preview.html')).href;
+
+// ── EL NAVEGADOR SE BUSCA, NO SE SUPONE ──
+//
+// Ninguna ruta de navegador es universal: cambia con el sistema operativo, con
+// la edición (Chrome, Chromium, Edge), con el idioma de instalación y con las
+// preferencias de quien lo usa. Se prueban las ubicaciones habituales, luego la
+// variable de entorno, y se acepta una ruta explícita como argumento. Si no
+// aparece ninguna, se dice cuál falta y cómo indicarla — nunca se asume.
+function encontrarChrome() {
+  // 1. Ruta explícita: `node verify.js /ruta/al/chrome`
+  if (process.argv[2]) {
+    if (!fs.existsSync(process.argv[2])) {
+      throw new Error(`La ruta indicada no existe: ${process.argv[2]}`);
+    }
+    return process.argv[2];
+  }
+
+  // 2. Variable de entorno: sirve para CI y para instalaciones raras.
+  const desdeEntorno = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (desdeEntorno && fs.existsSync(desdeEntorno)) return desdeEntorno;
+
+  // 3. Las ubicaciones habituales de cada sistema.
+  const candidatos = [
+    // Linux
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    // macOS
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    // Windows (Program Files, en ambos sabores)
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files/Microsoft/Edge/Application/msedge.exe'
+  ];
+  // En Windows las rutas dependen del usuario instalador: se añaden las suyas.
+  if (process.env.LOCALAPPDATA) {
+    candidatos.push(
+      path.join(process.env.LOCALAPPDATA, 'Google/Chrome/Application/chrome.exe'),
+      path.join(process.env.LOCALAPPDATA, 'Microsoft/Edge/Application/msedge.exe')
+    );
+  }
+  for (const c of candidatos) {
+    if (fs.existsSync(c)) return c;
+  }
+
+  throw new Error(
+    'No se encontró ningún navegador compatible.\n' +
+    'Indícalo así:  node verify.js /ruta/a/chrome\n' +
+    'o con la variable:  CHROME_PATH=/ruta/a/chrome node verify.js\n' +
+    'Probado en: ' + candidatos.join(', ')
+  );
+}
+
+let CHROME;
+try {
+  CHROME = encontrarChrome();
+} catch (e) {
+  console.error(e.message);
+  process.exit(2);   // 2 = el arnés no pudo arrancar (no es un fallo de la skill)
+}
+
 const FLOOR_PX = 10; // minRem 0.625 at a 16px root
 const MAX_LINES = 2;
 

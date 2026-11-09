@@ -1,8 +1,8 @@
 {
-  "name": "astro-text-fitting-verify",
+  "name": "text-fitting-verify",
   "private": true,
   "version": "1.0.0",
-  "description": "Automated acceptance harness for the FitField asset (astro-text-fitting skill).",
+  "description": "Automated acceptance harness for the FitField asset (text-fitting skill).",
   "scripts": {
     "verify": "node verify.js"
   },
