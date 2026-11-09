@@ -1,0 +1,232 @@
+---
+/**
+ * FitField.astro — a field that always holds exactly 2 lines: its font shrinks
+ * as you type and grows back as you delete, and once the minimum legible size
+ * is reached with both lines full, further input is BLOCKED (never clipped, and
+ * a third line can never appear).
+ *
+ * Documented EXCEPTION to `astro-text-fitting` rule 7 (page type is CSS-only).
+ * A widget of FIXED capacity — a chip, a badge, an N-line input whose content
+ * must always be fully visible — is a different problem: CSS cannot size text by
+ * content length, so a tiny client-side measurer is the correct tool. The fluid
+ * rem base stays the source of truth; JS may only decrement on real overflow and
+ * never below `minRem` (accessibility floor).
+ *
+ * Two design points that cost real bug reports to learn:
+ *  - Measure a hidden mirror `<div>`, not the textarea. A textarea is a replaced
+ *    element: with `overflow: hidden` many engines clamp `scrollHeight` to
+ *    `clientHeight`, so a shrink loop keyed on the textarea itself never fires.
+ *    The mirror is a plain div, so its scrollHeight is trustworthy. Its width,
+ *    font family/weight, line-height and text are re-synced on every measure.
+ *  - The capacity budget is N line-boxes at the ACTIVE font size (not a fixed
+ *    pixel budget): a fixed px budget holds more lines once the font shrinks, so
+ *    a third line eventually appears.
+ *
+ * Terminal behaviour: at the legibility floor, if the content still exceeds the
+ * capacity, the largest fitting prefix is kept and `maxLength` is set to it, so
+ * the browser itself refuses further typing and pasting. That is the accessible
+ * way to express a hard capacity; silently clipping hides text from the user.
+ */
+interface Props {
+  /** Visible field label. */
+  label?: string;
+  /** Placeholder text. */
+  placeholder?: string;
+  /** Hard accessibility floor, in rem. The font never shrinks below this. */
+  minRem?: number;
+  /** Fixed capacity, in lines. The box is always exactly this many lines tall. */
+  lines?: number;
+}
+const {
+  label = 'Mensaje',
+  placeholder = 'Escribe aquí…',
+  minRem = 0.625,
+  lines = 2,
+} = Astro.props;
+---
+<div class="fit">
+  <label class="fit__label" for="fit-field">{label}</label>
+  <div class="fit__shell">
+    <textarea
+      id="fit-field"
+      class="fit__field"
+      rows={lines}
+      placeholder={placeholder}
+      data-min-rem={minRem}
+      data-lines={lines}
+      autocomplete="off"
+      spellcheck="false"
+    ></textarea>
+    <div class="fit__mirror" aria-hidden="true"></div>
+  </div>
+  <p class="fit__hint">
+    Capacidad fija de {lines} líneas: la fuente se reduce a medida que escribes y crece al
+    borrar. Al tocar el mínimo legible con las líneas llenas, el campo deja de aceptar más
+    texto.
+  </p>
+</div>
+
+<style>
+  .fit {
+    inline-size: min(100%, 34rem);
+  }
+  .fit__label {
+    display: block;
+    margin-block-end: 0.4rem;
+    font-size: clamp(0.8rem, calc(0.75rem + 0.3vw), 1rem);
+    font-weight: 600;
+  }
+  .fit__field {
+    /* Fluid rem base: honors the browser font-size preference (WCAG 1.4.4).
+       The inline script may only decrement this on real overflow. */
+    font-size: clamp(1rem, calc(0.9rem + 1vw), 1.5rem);
+    line-height: 1.4;
+    box-sizing: border-box;
+    inline-size: 100%;
+    /* CSS-level space limit (does NOT depend on JS): fixed height + no resize +
+       hidden overflow. JS tightens this to exactly N line-boxes of the ACTIVE
+       font on every fit. */
+    block-size: 2.8em; /* pre-JS fallback: 2 * 1.4 line-height */
+    resize: none;
+    overflow: hidden;
+    padding: 0.6rem 0.8rem; /* rem, so the box width is stable during the loop */
+    border: 1px solid rgb(120 120 120 / 0.45);
+    border-radius: 0.55rem;
+    background: #fff;
+    color: #15181c;
+    font-family: inherit;
+  }
+  .fit__mirror {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    visibility: hidden; /* kept in layout so scrollHeight is measurable */
+    pointer-events: none;
+    white-space: pre-wrap; /* preserves the user's line breaks */
+    overflow-wrap: anywhere; /* matches textarea wrapping; safe (over-estimates) */
+    /* No padding/border/margin: scrollHeight must be pure content height. */
+  }
+  .fit__hint {
+    margin-block-start: 0.4rem;
+    font-size: clamp(0.75rem, calc(0.7rem + 0.2vw), 0.85rem);
+    color: #5b6470;
+  }
+</style>
+
+<script>
+  const field = document.getElementById('fit-field');
+  const mirror = document.querySelector('.fit__mirror');
+
+  if (field instanceof HTMLTextAreaElement && mirror instanceof HTMLDivElement) {
+    const MIN_REM = Number(field.dataset.minRem) || 0.625;
+    const MAX_LINES = Number(field.dataset.lines) || 2;
+    const rootPx = () =>
+      parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const minPx = MIN_REM * rootPx(); // respects a non-16px root
+    const STEP_PX = 0.8; // smooth decrement per overflow pass
+    const UNLIMITED = 524288; // max value of the maxlength attribute
+
+    // Unit-safe line-height ratio (handles `1.4`, `normal`, px, ...), captured
+    // once at the base font.
+    const baseFs = parseFloat(getComputedStyle(field).fontSize);
+    const baseLh = parseFloat(getComputedStyle(field).lineHeight);
+    const LH_RATIO = baseFs && baseLh ? baseLh / baseFs : 1.4;
+
+    // A trailing newline would collapse; a trailing space keeps it counted.
+    function setMirrorText(v) {
+      mirror.textContent = v.endsWith('\n') ? v + ' ' : v;
+    }
+
+    // Copy everything that affects wrapping to the mirror: content width, font
+    // family/weight, line-height and the text itself.
+    function syncMirror() {
+      const cs = getComputedStyle(field);
+      const contentWidth =
+        field.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      mirror.style.width = `${Math.max(0, contentWidth)}px`;
+      mirror.style.fontFamily = cs.fontFamily;
+      mirror.style.fontWeight = cs.fontWeight;
+      mirror.style.lineHeight = String(LH_RATIO); // scales with the active font
+      setMirrorText(field.value);
+    }
+
+    // Fit the content into MAX_LINES line-boxes by decrementing the font.
+    function fit() {
+      field.style.fontSize = ''; // back to the fluid CSS base
+      let px = parseFloat(getComputedStyle(field).fontSize);
+      mirror.style.fontSize = `${px}px`; // measure in the field's own base
+      syncMirror();
+
+      let h = mirror.scrollHeight;
+      let budget = Math.ceil(px * LH_RATIO * MAX_LINES); // at the ACTIVE font
+
+      while (h > budget && px > minPx) {
+        px = Math.max(minPx, px - STEP_PX);
+        field.style.fontSize = `${px}px`;
+        mirror.style.fontSize = `${px}px`;
+        h = mirror.scrollHeight;
+        budget = Math.ceil(px * LH_RATIO * MAX_LINES); // shrinks with the font
+      }
+
+      // Freeze the box at exactly MAX_LINES line-boxes of the active font.
+      const cs = getComputedStyle(field);
+      const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      field.style.blockSize = `${budget + pad}px`;
+
+      applyCapacity(px, budget);
+    }
+
+    // Largest prefix of the current value that fits in MAX_LINES lines at `px`.
+    // Only used at the legibility floor, where the font cannot shrink further.
+    function capacityAt(px, budget) {
+      const v = field.value;
+      mirror.style.fontSize = `${px}px`;
+      let lo = 0;
+      let hi = v.length;
+      let best = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        setMirrorText(v.slice(0, mid));
+        if (mirror.scrollHeight <= budget) {
+          best = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      // Never split a surrogate pair in half (emoji, astral characters).
+      if (best > 0 && best < v.length) {
+        const a = v.charCodeAt(best - 1);
+        const b = v.charCodeAt(best);
+        if (a >= 0xd800 && a <= 0xdbff && b >= 0xdc00 && b <= 0xdfff) best += 1;
+      }
+      return best;
+    }
+
+    // Terminal behaviour. At the floor with an overflow, BLOCK further input
+    // instead of clipping: keep the largest fitting prefix and let the browser
+    // enforce the limit via `maxLength` (covers typing AND pasting). While there
+    // is still font headroom, stay unlimited so the font can keep shrinking.
+    function applyCapacity(px, budget) {
+      const atFloor = px <= minPx;
+      const overflow = atFloor && mirror.scrollHeight > budget;
+
+      if (overflow) {
+        const cap = capacityAt(px, budget);
+        if (field.value.length > cap) {
+          field.value = field.value.slice(0, cap);
+          field.setSelectionRange(cap, cap);
+        }
+        field.maxLength = cap;
+        field.setAttribute('aria-blocked', 'true');
+      } else {
+        field.maxLength = UNLIMITED;
+        field.removeAttribute('aria-blocked');
+      }
+    }
+
+    fit();
+    field.addEventListener('input', fit);
+    window.addEventListener('resize', fit);
+  }
+</script>

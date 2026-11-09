@@ -1,0 +1,12 @@
+{
+  "name": "astro-text-fitting-verify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Automated acceptance harness for the FitField asset (astro-text-fitting skill).",
+  "scripts": {
+    "verify": "node verify.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

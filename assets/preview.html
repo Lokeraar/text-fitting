@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prueba · astro-text-fitting · campo 2 líneas shrink-to-fit</title>
+  <style>
+    /* Espejo runnable de assets/FitField.astro. Mismo CSS y misma lógica JS,
+       sin paso de build, para verificar el comportamiento directamente. */
+    :root {
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      min-block-size: 100vh;
+      display: grid;
+      place-items: start center;
+      padding: 2.5rem 1rem;
+      font-family: system-ui, sans-serif;
+      background: #f6f7f9;
+    }
+    .page {
+      inline-size: min(100%, 40rem);
+    }
+    .page__head {
+      margin-bottom: 1.25rem;
+    }
+    .page__head h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.25rem, calc(1.1rem + 0.75vw), 1.75rem);
+      text-wrap: balance;
+    }
+    .page__head p {
+      margin: 0;
+      font-size: clamp(0.85rem, calc(0.8rem + 0.25vw), 1rem);
+      color: #4d5662;
+    }
+
+    /* ---- FitField (espejo) ------------------------------------------ */
+    .fit {
+      inline-size: min(100%, 34rem);
+    }
+    .fit__label {
+      display: block;
+      margin-block-end: 0.4rem;
+      font-size: clamp(0.8rem, calc(0.75rem + 0.3vw), 1rem);
+      font-weight: 600;
+    }
+    .fit__field {
+      /* Base fluida en rem: respalda la preferencia de tamaño de fuente
+         del navegador (WCAG 1.4.4). El script solo puede bajarla. */
+      font-size: clamp(1rem, calc(0.9rem + 1vw), 1.5rem);
+      line-height: 1.4;
+      box-sizing: border-box;
+      inline-size: 100%;
+      /* Límite de espacio a nivel de CSS (NO depende del JS): altura fija,
+         sin redimensionar y con overflow oculto. El JS la ajusta a exactamente
+         2 cajas de línea de la fuente ACTIVA en cada ajuste. */
+      block-size: 2.8em; /* fallback pre-JS: 2 * 1.4 de line-height */
+      resize: none;
+      overflow: hidden;
+      padding: 0.6rem 0.8rem; /* rem: el ancho de contenido es estable */
+      border: 1px solid rgb(120 120 120 / 0.45);
+      border-radius: 0.55rem;
+      background: #fff;
+      color: #15181c;
+      font-family: inherit;
+    }
+    .fit__field:disabled,
+    .fit__field[aria-blocked='true'] {
+      background: #f2f3f5;
+    }
+    .fit__mirror {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      visibility: hidden; /* sigue en el layout: scrollHeight medible */
+      pointer-events: none;
+      white-space: pre-wrap; /* conserva los saltos de línea del usuario */
+      overflow-wrap: anywhere; /* emula el wrap del textarea; es seguro (más alto) */
+      /* Sin padding/border/margin: scrollHeight debe ser altura pura de
+         contenido. El ancho y la fuente los sincroniza el script. */
+    }
+    .fit__hint {
+      margin-block-start: 0.4rem;
+      font-size: clamp(0.75rem, calc(0.7rem + 0.2vw), 0.85rem);
+      color: #5b6470;
+    }
+
+    /* ---- Diagnóstico (solo para la prueba) --------------------------- */
+    .meter {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border: 1px dashed rgb(120 120 120 / 0.5);
+      border-radius: 0.55rem;
+      background: #fff;
+      font-size: 0.85rem;
+      color: #333b45;
+    }
+    .meter dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.2rem 0.9rem;
+      margin: 0;
+    }
+    .meter dt {
+      font-weight: 600;
+    }
+    .meter dd {
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .meter .state--blocked {
+      color: #a3231d;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page__head">
+      <h1>Prueba: campo de 2 líneas con tipografía que se reduce</h1>
+      <p>
+        Componente <code>FitField.astro</code> (<code>/skill:astro-text-fitting</code>).
+        El campo mide <strong>siempre 2 cajas de línea a la fuente activa</strong>. La fuente
+        baja a medida que escribes y crece al borrar. Cuando llega al mínimo legible y las
+        2 líneas están llenas, el campo <strong>bloquea la entrada</strong>: no se puede
+        escribir más, sin llegar nunca a una tercera línea.
+      </p>
+    </header>
+
+    <div class="fit">
+      <label class="fit__label" for="fit-field">Mensaje</label>
+      <div class="fit__shell">
+        <textarea
+          id="fit-field"
+          class="fit__field"
+          rows="2"
+          placeholder="Escribe aquí…"
+          data-min-rem="0.625"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <div id="fit-mirror" class="fit__mirror" aria-hidden="true"></div>
+      </div>
+      <p class="fit__hint">
+        Capacidad fija de 2 líneas. Al tocar el mínimo legible con las 2 líneas llenas, el
+        teclado deja de aceptar caracteres (tampoco acepta pegar más allá del aforo).
+      </p>
+    </div>
+
+    <section class="meter" aria-live="polite">
+      <dl>
+        <dt>font-size actual</dt>
+        <dd id="m-size">—</dd>
+        <dt>líneas de contenido</dt>
+        <dd id="m-lines">—</dd>
+        <dt>caracteres / aforo</dt>
+        <dd id="m-chars">—</dd>
+        <dt>estado</dt>
+        <dd id="m-state">—</dd>
+      </dl>
+    </section>
+  </main>
+
+  <script>
+    const field = document.getElementById('fit-field');
+    const mirror = document.getElementById('fit-mirror');
+    const mSize = document.getElementById('m-size');
+    const mLines = document.getElementById('m-lines');
+    const mChars = document.getElementById('m-chars');
+    const mState = document.getElementById('m-state');
+
+    if (field instanceof HTMLTextAreaElement && mirror instanceof HTMLDivElement) {
+      const MIN_REM = Number(field.dataset.minRem) || 0.625;
+      const rootPx = () =>
+        parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const minPx = MIN_REM * rootPx(); // respeta una raíz que no sea 16px
+      const STEP_PX = 0.8;
+      const MAX_LINES = 2;
+      const UNLIMITED = 524288; // tope del atributo maxlength
+
+      // Razón de line-height a prueba de unidades (`1.4`, `normal`, px...),
+      // capturada una vez a la fuente base.
+      const baseFs = parseFloat(getComputedStyle(field).fontSize);
+      const baseLh = parseFloat(getComputedStyle(field).lineHeight);
+      const LH_RATIO = baseFs && baseLh ? baseLh / baseFs : 1.4;
+
+      // Un salto de línea final colapsaría; el espacio final lo cuenta.
+      function setMirrorText(v) {
+        mirror.textContent = v.endsWith('\n') ? v + ' ' : v;
+      }
+
+      // Copia al espejo todo lo que afecta al ajuste: ancho de contenido,
+      // familia/peso de fuente, interlineado y el propio texto.
+      function syncMirror() {
+        const cs = getComputedStyle(field);
+        const contentWidth =
+          field.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        mirror.style.width = `${Math.max(0, contentWidth)}px`;
+        mirror.style.fontFamily = cs.fontFamily;
+        mirror.style.fontWeight = cs.fontWeight;
+        mirror.style.lineHeight = String(LH_RATIO); // escala con la fuente activa
+        setMirrorText(field.value);
+      }
+
+      // Ajusta la fuente para que el contenido quepa en MAX_LINES cajas de línea.
+      function fit() {
+        field.style.fontSize = ''; // volver a la base fluida del CSS
+        let px = parseFloat(getComputedStyle(field).fontSize);
+        mirror.style.fontSize = `${px}px`; // mide el espejo EN la base del campo
+        syncMirror();
+
+        let h = mirror.scrollHeight; // confiable: el espejo es un div normal
+        let budget = Math.ceil(px * LH_RATIO * MAX_LINES); // a la fuente ACTIVA
+
+        while (h > budget && px > minPx) {
+          px = Math.max(minPx, px - STEP_PX);
+          field.style.fontSize = `${px}px`;
+          mirror.style.fontSize = `${px}px`;
+          h = mirror.scrollHeight;
+          budget = Math.ceil(px * LH_RATIO * MAX_LINES); // baja con la fuente
+        }
+
+        // Congela la caja en exactamente MAX_LINES cajas de línea activas.
+        const cs = getComputedStyle(field);
+        const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+        field.style.blockSize = `${budget + pad}px`;
+
+        applyCapacity(px, budget, pad);
+      }
+
+      // Mayor prefijo del valor actual que cabe en MAX_LINES líneas a `px`.
+      // Se usa solo en el suelo de legibilidad: la fuente ya no puede bajar.
+      function capacityAt(px, budget) {
+        const v = field.value;
+        mirror.style.fontSize = `${px}px`;
+        let lo = 0;
+        let hi = v.length;
+        let best = 0;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          setMirrorText(v.slice(0, mid));
+          if (mirror.scrollHeight <= budget) {
+            best = mid;
+            lo = mid + 1;
+          } else {
+            hi = mid - 1;
+          }
+        }
+        // Nunca partir un par sustituto por la mitad (emoji, caracteres astrales).
+        if (best > 0 && best < v.length) {
+          const a = v.charCodeAt(best - 1);
+          const b = v.charCodeAt(best);
+          if (a >= 0xd800 && a <= 0xdbff && b >= 0xdc00 && b <= 0xdfff) best += 1;
+        }
+        return best;
+      }
+
+      // Actuación final: si estamos en el suelo y no cabe, se BLOQUEA la entrada
+      // (no se recorta). Si aún hay margen, el aforo queda libre.
+      function applyCapacity(px, budget, pad) {
+        const atFloor = px <= minPx;
+        const overflow = atFloor && mirror.scrollHeight > budget;
+        let cap = -1; // -1 = sin aforo impuesto (la fuente aún puede bajar)
+
+        if (overflow) {
+          cap = capacityAt(px, budget);
+          if (field.value.length > cap) {
+            field.value = field.value.slice(0, cap);
+            field.setSelectionRange(cap, cap);
+          }
+          // El espejo queda apuntando al último prefijo probado por la búsqueda
+          // binaria; hay que devolverlo al valor que realmente conservamos.
+          setMirrorText(field.value);
+          field.maxLength = cap; // bloque nativo: teclado y pegado
+          field.setAttribute('aria-blocked', 'true');
+        } else {
+          field.maxLength = UNLIMITED; // la fuente aún puede bajar
+          field.removeAttribute('aria-blocked');
+        }
+
+        report(px, cap);
+      }
+
+      // Declarado antes de su uso: `report` se ejecuta en cada `fit`.
+      const atFloor = (px) => px <= minPx;
+
+      function report(px, cap) {
+        const lh = px * LH_RATIO;
+        // scrollHeight se mide en pixeles enteros: 2 lineas exactas (62.72px)
+        // se redondea a 63 y ceil daria 3. round tolera ese redondeo.
+        const lines = Math.max(1, Math.round(mirror.scrollHeight / lh));
+        const n = field.value.length;
+        const blocked = field.getAttribute('aria-blocked') === 'true';
+
+        mSize.textContent = `${(px / rootPx()).toFixed(3)} rem (${px.toFixed(1)} px)`;
+        mLines.textContent = `${lines} (caben ${MAX_LINES})`;
+        mChars.textContent = blocked ? `${n} / ${cap} (bloqueado)` : `${n}`;
+        mState.textContent = blocked
+          ? 'aforo máximo: no se puede escribir más (2 líneas a la fuente mínima legible)'
+          : atFloor(px)
+          ? 'en el mínimo legible'
+          : 'dentro de las 2 líneas';
+        mState.className = blocked ? 'state--blocked' : '';
+      }
+
+      fit();
+      field.addEventListener('input', fit);
+      window.addEventListener('resize', fit);
+    }
+  </script>
+</body>
+</html>
