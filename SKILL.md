@@ -113,20 +113,21 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
    **DEFAULT POSTURE: EVERY TEXT BOX SELF-FITS.** Text fitting is not a treatment for four named roles. It applies to **any area with text inside a box, nested element, card, row, chip, cell, or panel**, and the only input that matters is the space the box actually has. The starting size is the same for all of them (content: 16 pt) unless the designer declares a different ceiling, and the ladder below applies unchanged.
    - Reach for auto-fit **before** hand-picking a smaller size to make something fit. Choosing 12 pt by hand so a row fits is a decision that hides a layout problem; letting the box self-fit (and grow its line budget when needed) surfaces it.
    - A smaller ceiling is legitimate only when the designer states a **role reason** (dense scan target, legal footnote). "It did not fit" is not a role reason: grow the line budget first.
-   - **Which resource is scarce decides the fit strategy — and it is declared per role, never assumed.** Two strategies are legitimate, and they give opposite answers on the same text:
+   - **THERE IS ONE STRATEGY, AND THE LINE BUDGET WINS.** The order is fixed and not negotiable:
 
-     | Strategy | Rule | Correct when |
-     | --- | --- | --- |
-     | `letters` | largest size wins, even if it spends the grace line | box height is free: titles, descriptions, hero copy |
-     | `lines` | shortest capacity that fits wins; shrink to the floor before growing | row height is the scarce resource: table rows stacked one under another |
+     | Step | Action |
+     | --- | --- |
+     | 1 | Shrink the font from the ceiling down to the floor, **inside the declared line capacity**. |
+     | 2 | Only if it still does not fit at the floor, grant **one** extra line. |
+     | 3 | With that extra line, raise the font back up as far as it fits. |
 
-     Measured on one real row (105 px column, «Atlantic salmon (base ingredient) 0.24 Kg»): `letters` gives **21 px across 4 lines**, `lines` gives **16 px across 3**. Both are defensible; only one is right per design.
+     **Never spend the extra line before shrinking the font.** An extra line costs vertical space for every row below it; shrinking the font costs nothing to anyone else. That asymmetry is the whole argument, and it holds in every interface: a web table, a stacked list, a terminal panel.
 
-     **Do not hardcode either one globally.** Put the strategy on the role declaration, next to the ceiling and the capacity. A single global choice is always wrong for one half of the screen: `letters` everywhere makes table rows grow for half a point and push the footer off-screen; `lines` everywhere drops a 32 px title to 21 px to save a line the layout never needed.
+     Measured on one real row (105 px column, «Atlantic salmon (base ingredient) 0.24 Kg»): shrinking-first gives **16 px across 3 lines**; the opposite order gives **21 px across 4 lines**. The second looks better on that row alone and makes every row underneath move. A row that grows for half a point of font is a row that grew for no reason anyone can name.
 
-     **State the decision and who made it.** This is a product call the owner makes, not a typographic default the fitter picks. Write it in the role table with its reason.
+     **Why this replaced the earlier two-strategy rule.** A previous version of this file declared `letters` (largest size wins, grace line included) legitimate for titles and descriptions, with the argument that box height was free there. That was wrong as a default: it makes row height depend on text length, so two sibling rows end up different heights by fractions of a point, and a list stops being scannable. The line budget is the design parameter — if a title deserves more room, declare a larger capacity for it; do not let the fitter spend a line nobody budgeted.
 
-     An earlier version of this rule said «rows may grow taller than they may shrink — the two-line row at 16 pt beats the one-line row at 10 pt». That is the `letters` strategy stated as a universal law. It was wrong as a law, and it survived because nothing recorded that the alternative existed. A row that grows costs vertical space for every sibling below it; on a phone that is the difference between a visible footer and a hidden one.
+     **The declared capacity is the knob.** A role that needs more room says `lines: 3` or `lines: 4`, visibly, in one place. The fitter never invents capacity.
    - **When it does not fit at the floor, add a line and re-fit** — do not keep shrinking below the floor. The capacity is the design parameter; the floor is the accessibility limit. Growing N is the correct escape valve.
    - **THE GRACE LINE: exactly one, and only one.** The line budget has three states, and the order matters:
 
@@ -209,8 +210,8 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 | Text with a DECLARED line capacity (card title, product name, one-line row, N-line field) must fill those lines | JS auto-fit (rule 8): mirror `<div>`, capacity in N lines, floor, binary search, one run per content change |
 | Several strings share one row and must look uniform | Fit the most restrictive string and apply its size to every one of them (rule 8, consistency) |
 | A cell holds primary + secondary spans (name, badge, unit, surcharge) | Every child `font-size: inherit`; hierarchy by color and weight only. A child `clamp()` with a `rem` floor stops shrinking while the parent keeps going |
-| A row's height is the scarce resource (stacked table rows) | Strategy `lines`: shrink to the floor before spending the grace line |
-| Box height is free (title, description, hero copy) | Strategy `letters`: largest size wins, grace line included |
+| Text does not fit the declared capacity | Shrink the font to the floor FIRST; only then grant one line, and re-fit. Never the reverse |
+| A role needs more room than its capacity gives | Declare a larger capacity for that role; the fitter never spends a line nobody budgeted |
 | A ceiling must survive the fitter writing `font-size` | Height ceiling in `em` on the text node (`max-height: calc(N * 1.25em)`), not `line-clamp` on an ancestor |
 | Free-flowing page type with no line ceiling | `clamp()` + container queries — auto-fit is over-engineering there |
 | Clipped content is load-bearing | Do not clamp; restructure the layout or add a disclosure control |
@@ -233,7 +234,7 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 
 Return: the style files changed (`.astro`, `.jsx`/`.tsx`, `.vue`, `.svelte`, `.css` or Tailwind), the fluid tokens used or added, the verification performed (resize + font-size at the 500% Chromium ceiling), every place `px`/`pt` was converted, and any residual overflow risk or accessibility caveat. For bounded widgets, also return the designated space (field width + N lines), the legibility floor, and the character capacity derived from them.
 
-For any text with several spans in one cell, also return: the single size chosen, which spans inherit it, and which (if any) keep their own and why. For any row with a height ceiling, name the strategy (`letters` / `lines`) and who decided it.
+For any text with several spans in one cell, also return: the single size chosen, which spans inherit it, and which (if any) keep their own and why. For any row with a height ceiling, state the declared capacity in lines and confirm the shrink-then-grow order was respected.
 
 ## References
 
