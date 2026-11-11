@@ -129,6 +129,23 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 
      **The declared capacity is the knob.** A role that needs more room says `lines: 3` or `lines: 4`, visibly, in one place. The fitter never invents capacity.
    - **When it does not fit at the floor, add a line and re-fit** — do not keep shrinking below the floor. The capacity is the design parameter; the floor is the accessibility limit. Growing N is the correct escape valve.
+   - **WHEN THE CAPACITY IS UNKNOWN, ASK WITH `ask_user` BEFORE FITTING.** This is the rule that turns the whole skill from a technical contract into a workflow. Two situations, two behaviours:
+
+     **A — The user already stated the capacity** («este título debe ocupar 2 líneas», «que abarque 3 espacios»). **Do not ask again.** Fit to what they said and add the +1 reserve silently. Re-asking a answered question is noise, and worse: it makes the user doubt whether the first answer was registered.
+
+     **B — The user only said «aplica text-fitting» / «usa text-fitting» / anything with that intent, with no capacity.** Then the capacity is genuinely undetermined: no code can invent it, and guessing produces the exact defect this skill exists to prevent. **Ask before writing any code**, with two questions in one `ask_user`:
+
+     | Question | Options |
+     | --- | --- |
+     | **Where** does it apply? | In the whole project · In this window/modal · In this field · In this heading · In the footer · In the hero · In the table · In the «X» button · …match the actual context |
+     | **How many lines** should it use? | 1 · 2 · 3 · 4 · as many as it needs |
+
+     The **where** options are not a fixed list: they are the containers that actually exist in the code in front of you. Read the markup first, then offer real names («la tabla de ingredientes», «el encabezado de la carta»), never generic placeholders that the user has to translate.
+
+     **Why ask instead of deciding.** The line capacity is a product decision with a visible cost: each extra line pushes every sibling row down. A fitter that invents capacity hides that cost inside a component. A question makes it explicit and takes one round trip.
+
+     **Never ask twice.** If the answer is in the conversation, in a declaration, or in a previous `ask_user`, use it. The question exists for the gap, not as a ritual.
+
    - **THE LINE CAPACITY IS A QUESTION, NOT A GUESS — ASK, OR EXPOSE IT.** The number of lines is the one input the system cannot derive: it is a design decision. Two legitimate ways to obtain it:
 
      1. **At design time**: the role declares it (`lines: 2`), visibly, in one place.
@@ -199,6 +216,10 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
    - Define the budget as N line-boxes **at the active font size**, not at the base font, and set the box height to it on every fit. A fixed pixel budget holds more lines once the font shrinks, so a third line appears. Keep a CSS fallback (`block-size` + `resize: none` + `overflow: hidden`) so capacity holds even if the script fails.
    - **The character limit is derived, never chosen.** The available space is a design parameter you designate per use: the field's **width** and its **N-line capacity**. Those two, plus the legibility floor, determine how many characters fit — so never hardcode a character cap (`maxLength` gets the computed value, not an invented number). If the derived capacity is too small, change the designated space (widen the field, allow another line); never lower the font floor to buy room.
    - Expect a hard **capacity ceiling**, and enforce it by **blocking input, never by clipping**. Once the font reaches the accessibility floor, compute the largest prefix that fits the N lines and set the field's `maxLength` to it, so the browser itself refuses further typing and pasting. Silently clipping hides text from the user. The ceiling is correct (WCAG legibility), not a bug: widen the box or accept the limit — never lower the floor below legible size.
+   - **`container-type` and `fit-content` cannot live on the same box.** `container-type: inline-size` forbids the element's width from depending on its content — the engine resolves it before laying out children so it can answer `cqi`. `width: fit-content` asks for exactly the opposite. The combination is a circular dependency and the browser collapses the box to its minimum: measured at **26 px, with a 0 px child that still held text**. Nesting the two boxes separately does not fix it either; the inner container then declares a size that does not exist yet. **Fix: measure the text with a `Range` in JS and publish the width inline.** Then the box has a definite width before layout, and the container query works.
+   - **Size the fitted box from its WIDEST CHILD, not from a `Range` over the whole container.** `range.selectNodeContents(container)` returns the container's own width, not the width of its longest line, so a `max-width` on the box is never respected (measured: two boxes with different maxima both came out at 114 px). Walk the children and take the largest.
+   - **A capacity measured from the current value is zero when the field is empty.** The character capacity of a field does not depend on what is typed into it; it depends on its width, its line capacity and the legibility floor. Measuring `input.value` gave 0, then set `maxLength = 0`, and the browser refused every keystroke: the field looked dead, showing «0 of 0». Measure a **reference string** instead.
+   - **A `cqi` term must clear the floor to show any difference.** Two containers of 98 px and 94 px differ by 4 px. `4cqi` gives 3.9 px and 3.8 px — both swallowed by the 13 px floor, so the text renders identically and the container query looks broken. Use a steep enough term (`20cqi`) that both values land above the floor, and assert a measured difference.
    - **A `@container` breakpoint must fall INSIDE the range of container widths you actually have.** Verified failure: two cards at 150 px and 313 px, with `@container (max-width: 20rem)` — 20 rem is 320 px, wider than both cards, so the rule matched neither and both rendered at the same size. The breakpoint looked correct in isolation and did nothing. Check the real measured widths before choosing the threshold, and assert that the two render differently.
    - **A boolean HTML attribute is falsy in `dataset`.** `<div data-cupo-panel>` gives `el.dataset.cupoPanel === ""`, which fails an `if (el.dataset.cupoPanel)` test. Write `data-cupo-panel="1"` when the presence of the attribute is what you are testing. This silently disabled a control that the markup said was wired.
    - **A verification that expects a fixed pixel value will fail on a fluid `clamp()`.** `clamp(1.5rem, 1.25rem + 1.4vw, 2.25rem)` measures 16 px inside a narrow container and 36 px in a wide one; both are correct. Assert that the result lies **inside the declared range**, never that it equals a number. A range check also keeps the real invariant visible: the text never drops below the legibility floor.
@@ -250,7 +271,7 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 
 Return: the style files changed (`.astro`, `.jsx`/`.tsx`, `.vue`, `.svelte`, `.css` or Tailwind), the fluid tokens used or added, the verification performed (resize + font-size at the 500% Chromium ceiling), every place `px`/`pt` was converted, and any residual overflow risk or accessibility caveat. For bounded widgets, also return the designated space (field width + N lines), the legibility floor, and the character capacity derived from them.
 
-For any text with several spans in one cell, also return: the single size chosen, which spans inherit it, and which (if any) keep their own and why. For any row with a height ceiling, state the declared capacity in lines and confirm the shrink-then-grow order was respected.
+For any text with several spans in one cell, also return: the single size chosen, which spans inherit it, and which (if any) keep their own and why. For any row with a height ceiling, state the declared capacity in lines, say whether it came from the user or from a question you asked, and confirm the shrink-then-grow order was respected.
 
 ## References
 
