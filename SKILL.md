@@ -129,6 +129,17 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 
      **The declared capacity is the knob.** A role that needs more room says `lines: 3` or `lines: 4`, visibly, in one place. The fitter never invents capacity.
    - **When it does not fit at the floor, add a line and re-fit** — do not keep shrinking below the floor. The capacity is the design parameter; the floor is the accessibility limit. Growing N is the correct escape valve.
+   - **THE LINE CAPACITY IS A QUESTION, NOT A GUESS — ASK, OR EXPOSE IT.** The number of lines is the one input the system cannot derive: it is a design decision. Two legitimate ways to obtain it:
+
+     1. **At design time**: the role declares it (`lines: 2`), visibly, in one place.
+     2. **At runtime**: the UI exposes a control so the person states it.
+
+     What is never acceptable is the fitter inventing capacity to make something fit. That is the same defect as hand-picking a smaller font: it hides the layout problem instead of naming it.
+
+     The **+1 grace line is not part of the request**. It is a reserve for when the stated capacity turns out to be impossible for the actual content — a safety net, not budget. Conflating them produces the classic bug where a component silently occupies 3 lines because someone "needed" 2 and the reserve got spent on every render.
+
+     Verified in a real browser (Chrome 127 via CDP): with the capacity set to 2, three titles of different lengths all sit at 16 px across 2 lines. Set to 3, all three use 3. Set to **1**, the two long ones shrink to 9 px and 9.5 px — they do not borrow the reserve. That is the behaviour the rule requires, and it only holds if the capacity is genuinely an input.
+
    - **THE GRACE LINE: exactly one, and only one.** The line budget has three states, and the order matters:
 
      | Situation | Action |
@@ -188,6 +199,11 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
    - Define the budget as N line-boxes **at the active font size**, not at the base font, and set the box height to it on every fit. A fixed pixel budget holds more lines once the font shrinks, so a third line appears. Keep a CSS fallback (`block-size` + `resize: none` + `overflow: hidden`) so capacity holds even if the script fails.
    - **The character limit is derived, never chosen.** The available space is a design parameter you designate per use: the field's **width** and its **N-line capacity**. Those two, plus the legibility floor, determine how many characters fit — so never hardcode a character cap (`maxLength` gets the computed value, not an invented number). If the derived capacity is too small, change the designated space (widen the field, allow another line); never lower the font floor to buy room.
    - Expect a hard **capacity ceiling**, and enforce it by **blocking input, never by clipping**. Once the font reaches the accessibility floor, compute the largest prefix that fits the N lines and set the field's `maxLength` to it, so the browser itself refuses further typing and pasting. Silently clipping hides text from the user. The ceiling is correct (WCAG legibility), not a bug: widen the box or accept the limit — never lower the floor below legible size.
+   - **A `@container` breakpoint must fall INSIDE the range of container widths you actually have.** Verified failure: two cards at 150 px and 313 px, with `@container (max-width: 20rem)` — 20 rem is 320 px, wider than both cards, so the rule matched neither and both rendered at the same size. The breakpoint looked correct in isolation and did nothing. Check the real measured widths before choosing the threshold, and assert that the two render differently.
+   - **A boolean HTML attribute is falsy in `dataset`.** `<div data-cupo-panel>` gives `el.dataset.cupoPanel === ""`, which fails an `if (el.dataset.cupoPanel)` test. Write `data-cupo-panel="1"` when the presence of the attribute is what you are testing. This silently disabled a control that the markup said was wired.
+   - **A verification that expects a fixed pixel value will fail on a fluid `clamp()`.** `clamp(1.5rem, 1.25rem + 1.4vw, 2.25rem)` measures 16 px inside a narrow container and 36 px in a wide one; both are correct. Assert that the result lies **inside the declared range**, never that it equals a number. A range check also keeps the real invariant visible: the text never drops below the legibility floor.
+   - **Photo-free assets are still worth verifying in a real browser.** Server-side rendering and DOM stubs do not implement `@container`, do not lay out fonts, and return constant heights. The four defects above are invisible to a harness that does not lay out a page; they cost one CDP session to find and would each have shipped as a "works on my machine" bug.
+
    - **Run the fit once per content change, never on `resize` or per frame.** Trigger it when the modal opens, when the content is replaced, and when the container width changes for a structural reason (breakpoint, rotation). A `resize` listener that re-fits on every frame forces a layout recalculation per frame and janks the scroll.
    - **Binary-search the size, do not step by 1 px.** Each measure forces layout. From 32 px down to 10.67 px, a linear walk costs over 21 measures; a binary search costs about 5. Write the loop to halve the interval.
    - Keep the fluid `rem` base as the source of truth: reset to it on every run (so text also grows back when content shortens), and clamp the result between the floor and the ceiling.
