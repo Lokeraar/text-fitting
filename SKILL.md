@@ -215,6 +215,8 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
    - Measure a hidden **mirror `<div>`**, never the `<textarea>`/target itself. A textarea is a replaced element with its own internal scrolling; with `overflow: hidden` many engines report `scrollHeight === clientHeight`, so a shrink loop keyed on the textarea never fires.
    - Define the budget as N line-boxes **at the active font size**, not at the base font, and set the box height to it on every fit. A fixed pixel budget holds more lines once the font shrinks, so a third line appears. Keep a CSS fallback (`block-size` + `resize: none` + `overflow: hidden`) so capacity holds even if the script fails.
    - **The character limit is derived, never chosen.** The available space is a design parameter you designate per use: the field's **width** and its **N-line capacity**. Those two, plus the legibility floor, determine how many characters fit — so never hardcode a character cap (`maxLength` gets the computed value, not an invented number). If the derived capacity is too small, change the designated space (widen the field, allow another line); never lower the font floor to buy room.
+
+     **But "derived" does not mean "a constant".** Because the count depends on the glyphs (see the reference-string rule below), the same field holds 62 wide characters or 140 narrow ones. A capacity shown to the user is therefore a capacity *for the text currently in the box*, and it must be recomputed on every edit — not computed once at boot and reused.
    - Expect a hard **capacity ceiling**, and enforce it by **blocking input, never by clipping**. Once the font reaches the accessibility floor, compute the largest prefix that fits the N lines and set the field's `maxLength` to it, so the browser itself refuses further typing and pasting. Silently clipping hides text from the user. The ceiling is correct (WCAG legibility), not a bug: widen the box or accept the limit — never lower the floor below legible size.
    - **`container-type` and `fit-content` cannot live on the same box.** `container-type: inline-size` forbids the element's width from depending on its content — the engine resolves it before laying out children so it can answer `cqi`. `width: fit-content` asks for exactly the opposite. The combination is a circular dependency and the browser collapses the box to its minimum: measured at **26 px, with a 0 px child that still held text**. Nesting the two boxes separately does not fix it either; the inner container then declares a size that does not exist yet. **Fix: measure the text with a `Range` in JS and publish the width inline.** Then the box has a definite width before layout, and the container query works.
    - **Size the fitted box from its WIDEST CHILD, not from a `Range` over the whole container.** `range.selectNodeContents(container)` returns the container's own width, not the width of its longest line, so a `max-width` on the box is never respected (measured: two boxes with different maxima both came out at 114 px). Walk the children and take the largest.
@@ -241,7 +243,33 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
      field.style.height = (cupo * px * lhRatio + relleno).toFixed(2) + 'px';
      ```
    - **Fit the field once at startup and once per capacity change, not only on input.** If the fit runs only from the `input` listener, the field sits in its initial state — big font, no `maxLength` — until the user types a character, so a pasted string arrives with no limit. Call the fit from the boot sequence and from the capacity control.
-   - **A capacity measured from the current value is zero when the field is empty.** The character capacity of a field does not depend on what is typed into it; it depends on its width, its line capacity and the legibility floor. Measuring `input.value` gave 0, then set `maxLength = 0`, and the browser refused every keystroke: the field looked dead, showing «0 of 0». Measure a **reference string** instead.
+   - **A capacity measured from the current value is zero when the field is empty.** Measuring `input.value` on an empty field gave 0, then set `maxLength = 0`, and the browser refused every keystroke: the field looked dead, showing «0 of 0». Measure a **reference string** instead when there is nothing typed yet — but see the next rule: a reference string is only a starting estimate, never the final answer.
+   - **A reference string made of wide letters caps the field far below its real capacity.** This is the opposite failure, and it is the one users notice: they type, the font drops to the floor, and half the last line is still empty. Measured on a 311 px field with a 2-line budget: a reference of `abc…ABC…012…` reported **75 characters**, while the same field held **140** characters of narrow text. The last line was **9 % full with the reference and 94 % full with the real text**.
+
+     Character counts are not a property of the box; they are a property of the **glyphs**. `WWWW` and `jjjj` differ by more than 2× in width. So the sample must be the text the user actually has:
+
+     ```js
+     // Repeat what is already written, then binary-search how much of THAT fits.
+     const base = (field.value && field.value.length) ? field.value : REFERENCE;
+     let sarta = base;
+     while (sarta.length < 800) sarta += base;
+     ```
+
+     With an empty field there is nothing to sample, so a reference is the only estimate available. Keep it, but treat it as a guess: do **not** freeze it into `maxLength`, or a pasted string is truncated before it can ever be measured. Set a generous `maxLength` while empty, then replace it with the exact number once there is text:
+
+     ```js
+     field.maxLength = Math.ceil(capacidad * 2.2);   // empty: room to paste and measure
+     if (field.value.length > 0) field.maxLength = capacidad;   // exact, now measurable
+     ```
+
+     Measured after the fix, same field: narrow letters 140, wide letters 62, lowercase 110, digits 98. Capacity now tracks the text instead of a fixed guess.
+   - **The line budget must be computed at the SAME font size as the measurement.** A budget taken once at the floor (`lineHeight * N` at 8 pt = 27.7 px) and then compared against text measured at 9 pt (31 px) declares «does not fit» when two lines at 9 pt are 31.2 px and fit perfectly. The font falls to the floor for nothing, and the box looks half empty. Recompute the budget inside the search, per candidate size:
+
+     ```js
+     const cabePx = px => altoCon(espejo, texto, px).alto <= px * lhRatio * cupo + TOL;
+     ```
+
+     Assert it with a narrow text: it should survive at 12–15 pt on a 2-line budget, not collapse to 8 pt.
    - **A `cqi` term must clear the floor to show any difference.** Two containers of 98 px and 94 px differ by 4 px. `4cqi` gives 3.9 px and 3.8 px — both swallowed by the 13 px floor, so the text renders identically and the container query looks broken. Use a steep enough term (`20cqi`) that both values land above the floor, and assert a measured difference.
    - **A `@container` breakpoint must fall INSIDE the range of container widths you actually have.** Verified failure: two cards at 150 px and 313 px, with `@container (max-width: 20rem)` — 20 rem is 320 px, wider than both cards, so the rule matched neither and both rendered at the same size. The breakpoint looked correct in isolation and did nothing. Check the real measured widths before choosing the threshold, and assert that the two render differently.
    - **A boolean HTML attribute is falsy in `dataset`.** `<div data-cupo-panel>` gives `el.dataset.cupoPanel === ""`, which fails an `if (el.dataset.cupoPanel)` test. Write `data-cupo-panel="1"` when the presence of the attribute is what you are testing. This silently disabled a control that the markup said was wired.
@@ -294,6 +322,8 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 ## Output Contract
 
 Return: the style files changed (`.astro`, `.jsx`/`.tsx`, `.vue`, `.svelte`, `.css` or Tailwind), the fluid tokens used or added, the verification performed (resize + font-size at the 500% Chromium ceiling), every place `px`/`pt` was converted, and any residual overflow risk or accessibility caveat. For bounded widgets, also return the designated space (field width + N lines), the legibility floor, and the character capacity derived from them.
+
+A character capacity is a property of the **glyphs**, not of the box: the same 311 px field held 62 wide characters and 140 narrow ones. So never report one fixed number as if it described the field. Report the capacity **for the text in question**, and state that it is recomputed on every edit — with the empty field falling back to a reference estimate, never a frozen cap.
 
 For any text with several spans in one cell, also return: the single size chosen, which spans inherit it, and which (if any) keep their own and why. For any row with a height ceiling, state the declared capacity in lines, say whether it came from the user or from a question you asked, and confirm the shrink-then-grow order was respected.
 
