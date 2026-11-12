@@ -266,6 +266,7 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 4. If content length is dynamic, add containment (Hard Rule 4); verify the longest realistic string and the narrowest container do not clip.
 5. For reusable components, declare `container-type: inline-size` and add an `@container` `rem` foldback.
 6. Verify: resize across breakpoints; bump browser font size to its ceiling (500% in Chromium); confirm no overflow and no loss of content or function at that ceiling, not only at the 200% WCAG floor. For bounded widgets, prefer the automated harness (`assets/verify`) over manual clicking: it runs the resize/capacity/edge-case matrix deterministically and exits non-zero on the first miss.
+7. When verifying in a real browser repeatedly, do not open a tab per run. Reuse the existing one and cap at **two tabs per URL**, alternating A → B → A so the previous version stays visible for comparison. See `assets/verify/README.md`.
 
 ## Output Contract
 

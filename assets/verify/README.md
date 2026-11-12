@@ -70,3 +70,33 @@ check here — adding a documented behaviour means adding a check in the same pl
   the harness parses the panel's own integer count rather than recomputing.
 - **Chrome must exist** at the path in `verify.js` (or `CHROME` constant). On a machine
   with Edge only, point it at `msedge.exe`.
+
+## Tab policy for repeated verification
+
+Each verification run must not leave a tab behind. On a low-RAM device —or when the
+browser runs alongside other heavy processes— accumulated tabs are what pushes the
+machine into swapping or rebooting.
+
+- **Reuse before opening.** Search for a tab that already holds the target URL.
+- **Cap at two tabs per URL.** Two, not one: a single tab cannot show "how it was"
+  against "how it looks now", because reloading destroys the previous state. Two
+  allow the comparison without accumulating.
+- **Alternate A → B → A → B.** First run opens A; after a change, the next run opens
+  B; the run after that reloads A, then B again.
+- **Close the excess.** Any third tab for that URL is closed. Tabs belonging to other
+  URLs are never touched — they may be the user's own.
+
+On Chromium, `PUT /json/new` may answer `500`. Use `Target.createTarget` over the
+browser websocket instead:
+
+```js
+const { webSocketDebuggerUrl } = await (await fetch('http://127.0.0.1:9222/json/version')).json();
+const ws = new WebSocket(webSocketDebuggerUrl);
+ws.onopen = () => ws.send(JSON.stringify({
+  id: 1, method: 'Target.createTarget', params: { url: targetUrl },
+}));
+```
+
+`/json/list` does **not** return a stable order — newly created tabs come first, so
+`list[n % 2]` alternates wrongly. Persist the creation order (the ids, in the order
+the tabs were first seen) and alternate over that stored order.
