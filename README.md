@@ -9,7 +9,7 @@ llega el nombre largo y se rompe todo?**
 
 A todos nos ha pasado. El diseñador acomoda «Nigiri» en el recuadro, todo queda
 perfecto, y al día siguiente el mismo recuadro recibe «Nigiri de Atún con Queso
-Crema y Ajonjolí (2 piezas)». Misma caja, el doble de letras.
+Crema y Ajonjolí (2 piezas)». Misma caja, con un montón de letras más y se rompe.
 
 Y entonces pasa una de tres cosas, y las tres son malas:
 
@@ -19,7 +19,7 @@ Y entonces pasa una de tres cosas, y las tres son malas:
 - El texto **empuja** el botón de comprar fuera de la pantalla. No es un error
   visible: es una venta perdida.
 
-Lo peor es que nadie lo reporta como error. El cliente simplemente cierra la
+Lo peor es que nadie lo reporta como error. El cliente simplemente no entiende y cierra la
 página.
 
 **Pues text-fitting existe exactamente para eso.** Le dice a tu agente que cada
@@ -86,7 +86,7 @@ Los veinte escenarios cubren:
 
 La elección se hace una vez por elemento, y es una sola pregunta:
 
-> **¿Puedes decir en voz alta cuántos renglones debe ocupar este texto?**
+> **¿Puedes estimar cuántas filas debe ocupar este texto?**
 
 | Si respondes… | Se usa | Porque |
 |---|---|---|
@@ -163,7 +163,7 @@ O pídelo en lenguaje llano:
 > «Este título debe ocupar exactamente dos líneas, con cualquier longitud de texto.»
 
 Si le dices cuántos renglones son, no pregunta nada más. Si solo dices «aplica
-text-fitting», te va a preguntar **dónde** aplicarlo y **cuántos renglones** debe
+text-fitting», te va a preguntar **dónde** aplicarlo y **cuántos renglones/filas** debe
 ocupar. Son las dos únicas decisiones que no puede adivinar.
 
 ## Qué contiene
