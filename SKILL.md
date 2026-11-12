@@ -218,6 +218,29 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
    - Expect a hard **capacity ceiling**, and enforce it by **blocking input, never by clipping**. Once the font reaches the accessibility floor, compute the largest prefix that fits the N lines and set the field's `maxLength` to it, so the browser itself refuses further typing and pasting. Silently clipping hides text from the user. The ceiling is correct (WCAG legibility), not a bug: widen the box or accept the limit — never lower the floor below legible size.
    - **`container-type` and `fit-content` cannot live on the same box.** `container-type: inline-size` forbids the element's width from depending on its content — the engine resolves it before laying out children so it can answer `cqi`. `width: fit-content` asks for exactly the opposite. The combination is a circular dependency and the browser collapses the box to its minimum: measured at **26 px, with a 0 px child that still held text**. Nesting the two boxes separately does not fix it either; the inner container then declares a size that does not exist yet. **Fix: measure the text with a `Range` in JS and publish the width inline.** Then the box has a definite width before layout, and the container query works.
    - **Size the fitted box from its WIDEST CHILD, not from a `Range` over the whole container.** `range.selectNodeContents(container)` returns the container's own width, not the width of its longest line, so a `max-width` on the box is never respected (measured: two boxes with different maxima both came out at 114 px). Walk the children and take the largest.
+   - **A line-height copied to a mirror as pixels freezes it: the mirror never shrinks.** `getComputedStyle(el).lineHeight` returns the value **already resolved to pixels** (e.g. `24.96px`, from `line-height: 1.3`). Copying that string to the measuring mirror locks the line box: the mirror measured one line as 24.96 px at 16 pt and **exactly the same at 8 pt**, so it believed the same amount of text fit at both sizes. The capacity came out short, the font shrank far earlier than needed, and the box clipped. Copy the **ratio**, not the resolved value:
+
+     ```js
+     const cs = getComputedStyle(field);
+     const lh = cs.lineHeight;
+     mirror.style.lineHeight = /px$/.test(lh)
+       ? String(parseFloat(lh) / parseFloat(cs.fontSize))   // 1.3, scales with font-size
+       : lh;                                                // unitless or 'normal' already scales
+     ```
+
+     Verify it with two sizes: the mirror's `line-height` must differ. Measured after the fix: 13.87 px at 8 pt vs 27.73 px at 16 pt; before, both were 24.96 px.
+   - **Never compare a height WITH padding against a budget WITHOUT padding.** `scrollHeight` includes the mirror's padding; a budget computed as `lineHeight * N` is text only. With small fonts the padding eats a whole line box: one line already "did not fit", capacity collapsed to **1 character**, and the field looked broken. Subtract the padding before comparing:
+
+     ```js
+     const relleno = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+     const alto = mirror.scrollHeight - relleno;
+     ```
+   - **A fixed `height` on the field cancels every shrink.** If the box has `height: calc(2 * 1.3em + 1rem)` resolved at the *initial* size, shrinking the font does not reveal more room: the box keeps its old height and the text clips. Set the height from the font size the fitter chose, on every pass, and give it no `min-height` — a `min-height` wins over the computed height, and with a 1-line budget the box still measured two.
+
+     ```js
+     field.style.height = (cupo * px * lhRatio + relleno).toFixed(2) + 'px';
+     ```
+   - **Fit the field once at startup and once per capacity change, not only on input.** If the fit runs only from the `input` listener, the field sits in its initial state — big font, no `maxLength` — until the user types a character, so a pasted string arrives with no limit. Call the fit from the boot sequence and from the capacity control.
    - **A capacity measured from the current value is zero when the field is empty.** The character capacity of a field does not depend on what is typed into it; it depends on its width, its line capacity and the legibility floor. Measuring `input.value` gave 0, then set `maxLength = 0`, and the browser refused every keystroke: the field looked dead, showing «0 of 0». Measure a **reference string** instead.
    - **A `cqi` term must clear the floor to show any difference.** Two containers of 98 px and 94 px differ by 4 px. `4cqi` gives 3.9 px and 3.8 px — both swallowed by the 13 px floor, so the text renders identically and the container query looks broken. Use a steep enough term (`20cqi`) that both values land above the floor, and assert a measured difference.
    - **A `@container` breakpoint must fall INSIDE the range of container widths you actually have.** Verified failure: two cards at 150 px and 313 px, with `@container (max-width: 20rem)` — 20 rem is 320 px, wider than both cards, so the rule matched neither and both rendered at the same size. The breakpoint looked correct in isolation and did nothing. Check the real measured widths before choosing the threshold, and assert that the two render differently.
