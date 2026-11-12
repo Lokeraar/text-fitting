@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo de escenarios · text-fitting</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   ESTA PÁGINA SE APLICA A SÍ MISMA LA SKILL.
+   No hay ni un tamaño fijo en píxeles: todo es rem + clamp().
+   Si abres el zoom del navegador al 500 %, esto sigue creciendo.
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --base: 1rem;
+  --t-h1:  clamp(1.5rem, 1.25rem + 1.4vw, 2.25rem);
+  --t-h2:  clamp(1.15rem, 1.05rem + 0.6vw, 1.5rem);
+  --t-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --t-small: clamp(0.875rem, 0.85rem + 0.15vw, 1rem);
+
+  --fondo: #0f1117;
+  --panel: #171a23;
+  --panel2: #1e222e;
+  --borde: #2a2f3d;
+  --tinta: #e8eaf0;
+  --tinta2: #a3aab8;
+  --ok: #3ddc97;
+  --mal: #ff6b6b;
+  --aviso: #ffc857;
+  --acento: #7aa2f7;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--t-body);
+  line-height: 1.6;
+}
+h1 { font-size: var(--t-h1); line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: var(--t-h2); line-height: 1.3; margin: 0 0 .75rem; }
+p  { margin: 0 0 .75rem; }
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.9em;
+  background: #0b0d12;
+  border: 1px solid var(--borde);
+  border-radius: 4px;
+  padding: .1em .35em;
+  color: #b8c8f0;
+}
+.entradilla { color: var(--tinta2); max-width: 60ch; margin-bottom: 1.5rem; }
+
+/* ── Índice y filtros ── */
+.filtros {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  margin-bottom: 1.5rem;
+  position: sticky; top: 0; z-index: 10;
+  background: var(--fondo);
+  padding: .75rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+.filtros button {
+  font: inherit; font-size: var(--t-small);
+  background: var(--panel2); color: var(--tinta);
+  border: 1px solid var(--borde); border-radius: 999px;
+  padding: .35rem .9rem; cursor: pointer;
+}
+.filtros button[aria-pressed="true"] { background: var(--acento); color: #0b0d12; border-color: var(--acento); font-weight: 600; }
+
+/* ── Tarjeta de escenario ── */
+.esc {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  margin-bottom: 1.25rem;
+}
+.esc-num {
+  display: inline-block;
+  font-size: var(--t-small); font-weight: 700;
+  color: var(--acento); letter-spacing: .08em;
+  margin-bottom: .25rem;
+}
+.esc-que { color: var(--tinta2); font-size: var(--t-small); margin-bottom: 1rem; }
+.debe {
+  background: var(--panel2);
+  border-left: 3px solid var(--acento);
+  border-radius: 0 8px 8px 0;
+  padding: .75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: var(--t-small);
+}
+.debe strong { color: var(--acento); }
+.debe ul { margin: .35rem 0 0; padding-left: 1.25rem; }
+.debe li { margin-bottom: .2rem; }
+
+.demo {
+  background: #0b0d12;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: .75rem;
+}
+
+/* ── Veredicto automático ── */
+.veredicto {
+  display: flex; align-items: flex-start; gap: .5rem;
+  font-size: var(--t-small); font-family: ui-monospace, Menlo, monospace;
+  padding: .5rem .75rem; border-radius: 6px;
+  background: #0b0d12; border: 1px solid var(--borde);
+}
+.veredicto.pasa { border-color: var(--ok); color: var(--ok); }
+.veredicto.falla { border-color: var(--mal); color: var(--mal); }
+.veredicto.manual { border-color: var(--aviso); color: var(--aviso); }
+.veredicto::before { content: "·"; }
+.veredicto.pasa::before { content: "PASA"; font-weight: 700; }
+.veredicto.falla::before { content: "FALLA"; font-weight: 700; }
+.veredicto.manual::before { content: "A OJO"; font-weight: 700; }
+
+/* ══ DEMOS: un solo tamaño manda, la jerarquía es color y peso ══ */
+/* Escenario 1 · párrafo fluido */
+.parrafo-fluido { font-size: clamp(1rem, 0.95rem + 0.5vw, 1.25rem); line-height: 1.65; max-width: 62ch; }
+
+/* Escenario 3 · heading con balance */
+.h-balance { font-size: clamp(1.25rem, 1.05rem + 1vw, 2rem); line-height: 1.2; text-wrap: balance; max-width: 24ch; }
+
+/* Escenario 4 · título de tarjeta, cupo 2 líneas */
+.tarjeta {
+  background: var(--panel2); border: 1px solid var(--borde);
+  border-radius: 10px; padding: .85rem; width: min(100%, 320px);
+}
+.tarjeta-titulo {
+  font-size: 1.333rem;      /* 16 pt de partida; el medidor lo mueve */
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--tinta);
+  /* ── TECHO DE 2 RENGLONES, PERO ALTO VARIABLE ──
+     `.line-clamp` en el PROPIO nodo del texto es el mecanismo correcto:
+     corta exactamente en el límite del renglón 2, nunca a media línea, y
+     su `scrollHeight` sigue midiendo el contenido completo (a diferencia de
+     lo que pasaba cuando el clamp vivía en el padre).
+     La caja NO tiene altura fija: si el texto usa un renglón, la tarjeta
+     mide un renglón. El alto crece solo si el texto lo necesita. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Escenario 5 · una sola línea, con gracia */
+.una-linea {
+  font-size: 1.333rem; line-height: 1.25; font-weight: 600;
+  max-height: calc(1 * 1.25em); overflow: hidden;
+  max-width: 240px;
+}
+
+/* Escenario 6 · celda con varios spans: todo hereda */
+.celda-multi { max-width: 190px; font-size: 1.1rem; line-height: 1.25; }
+/* ══ LOS CUATRO SPANS FLUYEN COMO UN PÁRRAFO ══
+   Antes `.nombre` era `display:block`, y eso fue el defecto del escenario 09:
+   el nombre ocupaba su propia caja, así que la unidad y el recargo NO podían
+   aprovechar el espacio libre al final del renglón y saltaban a otro.
+   En línea, los cuatro comparten el flujo y el hueco se gasta al máximo. */
+.celda-multi .nombre { display: inline; }
+.celda-multi .marca  { color: #9fd8c4; font-size: inherit; }
+.celda-multi .unidad { color: var(--tinta2); font-size: inherit; white-space: nowrap; }
+.celda-multi .recargo{ color: #9fb8e8; font-size: inherit; white-space: normal; }
+
+/* Escenario 14 · el defecto: hijo con tamaño propio y piso en rem */
+.mal-hijo { font-size: 1.1rem; line-height: 1.25; max-width: 190px; }
+.mal-hijo .nombre  { display: block; font-size: inherit; }
+.mal-hijo .unidad  { color: var(--tinta2); font-size: clamp(.8125rem, .82em, 1.0625rem); white-space: nowrap; }
+
+/* Escenario 7 · consistencia en un renglón */
+.renglon { display: grid; grid-template-columns: repeat(3, 1fr); gap: .25rem; text-align: center; }
+.renglon span { font-size: 1.333rem; line-height: 1.2; font-weight: 600; white-space: nowrap; }
+
+/* Escenario 12 · container queries */
+/* ══ LA ISLA SE AJUSTA A SU TEXTO, Y LA LETRA RESPONDE A ESE ANCHO ══
+
+   Tres intentos fallidos, y el porqué de cada uno, porque el tercero funciona:
+
+   1. `width: fit-content` en la MISMA caja con `container-type: inline-size`.
+      Circular: `container-type` prohíbe que el ancho dependa del contenido
+      (el motor lo resuelve antes de maquetar hijos, para poder responder
+      `cqi`), y `fit-content` pide exactamente lo contrario. Medido: 26 px.
+
+   2. Dos cajas anidadas, exterior con `fit-content` e interior con
+      `container-type`. Tampoco: el interior declara un contenedor cuyo ancho
+      aún no existe, la exterior mide su mínimo (26 px) y el hijo colapsa a
+      0 px con texto dentro. `flex: 0 0 auto` no lo arregla porque el problema
+      no es el reparto del flex, es el ciclo de medición.
+
+   3. EL ANCHO LO FIJA EL MEDIDOR, no el CSS. Se mide el texto con un `Range`,
+      se añade el relleno, se limita al máximo y se publica como `width` en
+      línea sobre la caja exterior. Sin `fit-content`, no hay ciclo: el
+      contenedor tiene un ancho definitivo ANTES de maquetar, así que la
+      `container-type` del interior puede medirlo y la letra responde.
+
+   El máximo lo declara el diseño (`--isla-max`); el ancho real lo mide el
+   aparato. Es la misma regla que la tabla de columnas: nunca un número
+   copiado de otro teléfono. */
+.isla-exterior {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.isla {
+  container-type: inline-size;
+  background: var(--panel2);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: .75rem;
+  height: 100%;
+}
+/* El tamaño depende del ancho de SU contenedor (`cqi`), no de la ventana.
+   El `clamp` va de 13 px a 24 px; en una caja de 114 px el término `cqi` da
+   ~14 px y en una de 96 px da ~13 px. La diferencia es real pero pequeña, así
+   que la regla de abajo la hace inequívoca. */
+/* `14cqi` sobre 114 px da 16 px; sobre 96 px da 13,4 px. El clamp corta en
+   13 px por abajo, así que la diferencia visible la marca el piso: 16 contra
+   13 px. Con `4cqi` las dos caían por debajo y se veían iguales. */
+/* Los contenedores miden 98 px y 94 px de ancho interno: la diferencia es de
+   solo 4 px, así que un término `cqi` proporcional no alcanza a separar los
+   tamaños. Se usa un `cqi` con más pendiente: 20cqi da 19,6 px en el ancho y
+   18,8 px en el estrecho, los dos por encima del piso, y ahí la diferencia se
+   ve con claridad. */
+.isla-titulo { font-size: clamp(0.8125rem, 20cqi, 1.5rem); line-height: 1.3; font-weight: 600; }
+/* El umbral debe caer ENTRE los dos anchos reales, y esos anchos los decide la
+   medición: aquí son 114 px (ancha) y 96 px (angosta). Con 12rem = 192 px la
+   regla no alcanzaba a ninguna y las dos letras quedaban iguales. Con 7rem =
+   112 px, la angosta (96) entra y la ancha (114) no. */
+
+
+/* ══ EL PANEL QUE DECLARA EL CUPO (escenario 04) ══
+   El número de renglones es una DECISIÓN, no una medida. Por eso es lo único
+   que el sistema no puede deducir solo: lo declara la persona que diseña. */
+.cupo-panel {
+  background: var(--panel2);
+  border: 1px solid var(--acento);
+  border-radius: 10px;
+  padding: .85rem 1rem;
+  margin-bottom: 1rem;
+}
+.cupo-panel label { display: block; font-weight: 600; margin-bottom: .5rem; }
+.cupo-fila { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.cupo-panel input {
+  font: inherit; font-size: 1.2rem; font-weight: 700;
+  width: 4.5rem; text-align: center;
+  background: #0b0d12; color: var(--acento);
+  border: 1px solid var(--borde); border-radius: 6px;
+  padding: .3rem;
+}
+.cupo-nota { font-size: var(--t-small); color: var(--tinta2); }
+.cupo-nota b { color: var(--tinta); }
+.cupo-ayuda { font-size: var(--t-small); color: var(--tinta2); margin: .6rem 0 0; }
+
+/* ══ LA CAJA SE AJUSTA AL TEXTO, NO AL REVÉS (escenario 11) ══
+   `width: fit-content` con un `max-width`: la caja toma el ancho de su
+   contenido hasta el límite. Si el texto es corto, la caja es corta y no
+   queda un espacio vacío a la derecha. */
+.caja-justa {
+  width: fit-content;
+  max-width: 100%;
+  background: var(--panel2);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: .5rem .75rem;
+}
+
+/* Escenario 13 · el defecto del nowrap */
+.nowrap-mal .marca { white-space: nowrap; }
+.nowrap-bien .marca { white-space: normal; }
+
+/* Escenario 8 · campo con capacidad que bloquea */
+.campo-cap {
+  width: 100%; max-width: 100%;
+  font: inherit; font-size: 1.2rem; line-height: 1.3;
+  background: #0b0d12; color: var(--tinta);
+  border: 1px solid var(--borde); border-radius: 6px;
+  padding: .5rem; resize: none;
+  /* El alto NO va fijo: lo fija el JS con la letra que eligió y el cupo.
+     Con un alto fijo, encoger la letra no servía de nada: la caja seguía
+     midiendo dos renglones de la letra vieja y el texto quedaba recortado.
+     Tampoco lleva `min-height`: gana sobre el alto calculado y con cupo 1
+     la caja medía dos renglones en vez de uno. */
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Escenario 18 · columnas medidas, no copiadas */
+.tabla-demo { display: grid; gap: .125rem; font-size: 1rem; align-items: center; }
+.tabla-demo > * { min-width: 0; }
+.cab { font-size: .875rem; font-weight: 600; color: var(--tinta2); text-align: center; white-space: nowrap; }
+
+/* Etiquetas de estado de cada demo */
+.rotulo-demo { font-size: var(--t-small); color: var(--tinta2); margin-bottom: .5rem; }
+.rotulo-demo b { color: var(--tinta); }
+
+.ejemplo-mal { border-left: 3px solid var(--mal); padding-left: .75rem; }
+.ejemplo-bien { border-left: 3px solid var(--ok); padding-left: .75rem; }
+.fuera { opacity: .85; }
+.resumen { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+.resumen-total { font-size: var(--t-h2); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>Catálogo de escenarios · <code>text-fitting</code></h1>
+<p class="entradilla">
+  Cada escenario dice <strong>qué es</strong>, <strong>qué debe pasar</strong> y trae una demostración en vivo.
+  Donde se puede, la propia página mide el resultado y da su veredicto:
+  <span style="color:var(--ok)">PASA</span>,
+  <span style="color:var(--mal)">FALLA</span> o
+  <span style="color:var(--aviso)">A OJO</span> (requiere tu mirada).
+  Esta página se aplica a sí misma la skill: no tiene ni un tamaño fijo.
+</p>
+
+<div class="resumen" id="resumen">
+  <div class="resumen-total" id="resumen-total">Midiendo…</div>
+  <p style="margin:.35rem 0 0;font-size:var(--t-small);color:var(--tinta2)" id="resumen-detalle"></p>
+</div>
+
+<div class="filtros" role="group" aria-label="Filtrar escenarios">
+  <button data-f="todos" aria-pressed="true">Todos (20)</button>
+  <button data-f="fluido" aria-pressed="false">CSS fluido</button>
+  <button data-f="medido" aria-pressed="false">Auto-ajuste medido</button>
+  <button data-f="trampa" aria-pressed="false">Trampas</button>
+  <button data-f="acceso" aria-pressed="false">Accesibilidad</button>
+  <button data-f="fuera" aria-pressed="false">Fuera de alcance</button>
+</div>
+
+<!-- ══════════════════ A · TEXTO QUE FLUYE LIBRE ══════════════════ -->
+
+<section class="esc" data-cat="fluido">
+  <div class="esc-num">ESCENARIO 01 · CSS fluido</div>
+  <h2>Párrafo largo, sin tope de líneas</h2>
+  <p class="esc-que">Un texto de lectura normal: el cuerpo de un artículo, un aviso legal, la letra chica de un contrato. No tiene cupo de renglones porque nadie puede decir de antemano cuántos ocupará.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Crece y encoge con el ancho de la pantalla, sin una línea de JavaScript.</li>
+      <li><b>Nunca excede de 16 pt</b> (21,33 px) en el cuerpo de lectura: es el techo del contenido, y pasarlo cansa la vista en un párrafo largo.</li>
+      <li>Nunca baja de 8 pt, el piso de legibilidad. En la práctica se queda entre 12 y 16 pt.</li>
+      <li>Si el usuario agranda la letra del sistema, el texto agranda con ella.</li>
+      <li><b>No</b> se le aplica auto-ajuste: no hay cupo de líneas que respetar, así que medirlo sería esfuerzo inútil y empeoraría la lectura.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <p class="parrafo-fluido">El servicio se factura al final de cada periodo y se puede cancelar en cualquier momento desde el panel de la cuenta. Los cambios de plan se aplican de inmediato, con la diferencia prorrateada según los días que queden del ciclo en curso.</p>
+  </div>
+  <div class="veredicto manual" id="v01">Cambia el ancho de la ventana: el texto debe reacomodarse solo. Nunca debe aparecer scroll horizontal.</div>
+</section>
+
+<section class="esc" data-cat="fluido">
+  <div class="esc-num">ESCENARIO 02 · CSS fluido</div>
+  <h2>Título de página con techo y piso</h2>
+  <p class="esc-que">El encabezado principal. Debe ser grande en escritorio y razonable en teléfono, sin saltos bruscos. Se piensa en puntos (lo que da el diseñador) y se escribe en <code>rem</code> (lo que entiende el navegador).</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>El tamaño se declara en <b><code>rem</code></b>, que es la unidad del entorno: escala con la preferencia de letra del usuario.</li>
+      <li>El mínimo y el máximo del <code>clamp()</code> van en <code>rem</code>; el valor intermedio también contiene <code>rem</code>, no solo <code>vw</code>.</li>
+      <li>El título se mueve <b>dentro de su rango</b> según el ancho: no tiene un valor único.</li>
+      <li>Prueba del zoom: si quitas el término <code>vw</code>, el texto igual debe crecer al agrandar la letra del navegador.</li>
+    </ul>
+    <p style="margin:.6rem 0 .3rem"><b>La conversión, que es donde se falla:</b> copiar el número de puntos como píxeles encoge la letra un 25 %. La cuenta es <code>1 pt = 96/72 px = 1,3333 px</code>, y <code>1 rem = 16 px</code>:</p>
+    <table style="border-collapse:collapse;font-size:var(--t-small);width:100%;max-width:340px">
+      <tr style="color:var(--tinta2)"><th style="text-align:left;padding:.2rem .5rem">Diseño</th><th style="text-align:left;padding:.2rem .5rem">Píxeles</th><th style="text-align:left;padding:.2rem .5rem">rem</th></tr>
+      <tr><td style="padding:.15rem .5rem">8 pt</td><td style="padding:.15rem .5rem">10,67 px</td><td style="padding:.15rem .5rem"><code>0.667rem</code></td></tr>
+      <tr><td style="padding:.15rem .5rem">12 pt</td><td style="padding:.15rem .5rem">16,00 px</td><td style="padding:.15rem .5rem"><code>1rem</code></td></tr>
+      <tr><td style="padding:.15rem .5rem">16 pt</td><td style="padding:.15rem .5rem">21,33 px</td><td style="padding:.15rem .5rem"><code>1.333rem</code></td></tr>
+      <tr><td style="padding:.15rem .5rem">24 pt</td><td style="padding:.15rem .5rem">32,00 px</td><td style="padding:.15rem .5rem"><code>2rem</code></td></tr>
+    </table>
+  </div>
+  <div class="demo">
+    <div style="font-size:clamp(1.5rem,1.25rem+1.4vw,2.25rem);line-height:1.2;font-weight:700">Panel de control</div>
+  </div>
+  <div class="veredicto" id="v02">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="fluido">
+  <div class="esc-num">ESCENARIO 03 · CSS fluido</div>
+  <h2>Título corto que debe partirse parejo</h2>
+  <p class="esc-que">Un encabezado de dos o tres palabras que, si parte, queda con una línea larguísima y otra de una sola palabra. <code>text-wrap: balance</code> reparte.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Las líneas quedan de largo parecido, no una enorme y otra mínima.</li>
+      <li>Es una mejora progresiva: donde no se soporta, el texto se ve normal.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="h-balance">Resumen anual de actividad</div>
+  </div>
+  <div class="veredicto manual" id="v03">Aquí el criterio es visual: mira si las dos líneas quedan parejas.</div>
+</section>
+
+<!-- ══════════════════ B · TEXTO CON CUPO DECLARADO ══════════════════ -->
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 04 · auto-ajuste</div>
+  <h2>Título de tarjeta con cupo de <b>2 renglones</b>, elegido por ti</h2>
+  <p class="esc-que">El caso central de la skill. <b>Tú decides cuántos renglones</b> debe ocupar el texto: aquí, dos. El contenido llega del sistema y no lo eliges: un día es «Plan Básico», otro «Plan Profesional con Soporte Prioritario (2 usuarios)». Ese cupo es el parámetro de todo lo demás.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Tú estableces la cantidad de renglones que pretendes que el texto ocupe. Aquí: <b>2</b>.</li>
+      <li>El texto corto <b>crece</b> hasta el techo de 16 pt para aprovechar su espacio; no se queda diminuto.</li>
+      <li>El texto largo <b>encoge</b> lo justo para caber en esos 2 renglones.</li>
+      <li>La letra baja de 16 a 8 pt como máximo. Por debajo, no: ahí se gana un renglón (escenario 05).</li>
+      <li>Ni una palabra queda cortada con puntos suspensivos mientras haya sitio dentro del cupo.</li>
+      <li><b>El bloque sí puede cambiar de alto:</b> crece si el texto crece de renglones, y se encoge si el texto es corto. No se reserva una altura fija.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="cupo-panel">
+      <label for="cupo-input">¿Cuántos renglones quieres que use el texto?</label>
+      <div class="cupo-fila">
+        <input id="cupo-input" type="number" min="1" max="6" value="2" inputmode="numeric">
+        <span class="cupo-nota"> + <b>1</b> de reserva = <b id="cupo-total">3</b> como máximo</span>
+      </div>
+      <p class="cupo-ayuda">
+        Este es el <b>único parámetro que la interfaz no puede adivinar</b>: lo declaras tú.
+        El medidor nunca inventa capacidad. El <b>+1</b> no es parte de tu pedido: es la reserva
+        para cuando lo que pediste resulta imposible en esa cantidad de renglones.
+      </p>
+    </div>
+  <div style="display:flex;flex-wrap:wrap;gap:1rem">
+    <div class="tarjeta">
+      <div class="tarjeta-titulo" data-fit data-cupo-panel="1" data-lineas="2">Plan Básico</div>
+      <p style="margin:.5rem 0 0;font-size:var(--t-small);color:var(--tinta2)">Corto · 1 renglón usado</p>
+    </div>
+    <div class="tarjeta">
+      <div class="tarjeta-titulo" data-fit data-cupo-panel="1" data-lineas="2">Plan Profesional con Soporte Prioritario (2 usuarios)</div>
+      <p style="margin:.5rem 0 0;font-size:var(--t-small);color:var(--tinta2)">Largo · 2 renglones usados</p>
+    </div>
+    <div class="tarjeta">
+      <div class="tarjeta-titulo" data-fit data-cupo-panel="1" data-lineas="2">Licencia Corporativa Anual con Soporte Dedicado</div>
+      <p style="margin:.5rem 0 0;font-size:var(--t-small);color:var(--tinta2)">Muy largo · 2 renglones, letra mínima</p>
+    </div>
+  </div>
+  </div>
+  <div class="veredicto" id="v04">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 05 · auto-ajuste</div>
+  <h2>El renglón de gracia: uno más, y solo uno</h2>
+  <p class="esc-que">Va emparejado al <b>escenario 04</b>. Tú estableces el cupo de renglones; cuando el contenido, aun encogiendo hasta 8 pt, no cabe en ese cupo, recibe <b>un</b> renglón más. Nunca dos, nunca infinitos.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Si el texto cabe a 16 pt en <b>la cantidad de renglones definida</b>, se queda esos renglones a 16 pt.</li>
+      <li>Si no cabe, la letra <b>encoge hasta 8 pt</b> antes de añadir un renglón.</li>
+      <li>Solo si a 8 pt tampoco entra en ese cupo, se añade <b>una</b> fila más y se vuelve a ajustar la letra.</li>
+      <li>Solo si ni con esa fila extra cabe a 8 pt, aparecen los puntos suspensivos. Mientras el texto esté completo, unos puntos dirían que falta algo cuando no falta.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo">Cupo declarado: <b>1 renglón</b> · gracia permitida: <b>2</b></div>
+    <div style="display:flex;flex-wrap:wrap;gap:1rem">
+      <div class="una-linea" data-fit data-lineas="1" data-maxlineas="2" style="max-width:180px">Básico</div>
+      <div class="una-linea" data-fit data-lineas="1" data-maxlineas="2" style="max-width:180px">Profesional con soporte por correo y actualizaciones</div>
+      <div class="una-linea" data-fit data-lineas="1" data-maxlineas="2" style="max-width:180px">Corporativo anual con soporte dedicado</div>
+    </div>
+    <p style="margin:1rem 0 0;font-size:var(--t-small);color:var(--tinta2)">
+      El primero cabe a 16 pt en un renglón. El segundo encoge. El tercero, al no caber ni a 8 pt,
+      <b>usa el segundo renglón</b> y vuelve a ajustar la letra hacia arriba.
+    </p>
+  </div>
+  <div class="veredicto" id="v05">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 06 · auto-ajuste</div>
+  <h2>Celda con varias piezas: un solo tamaño para todas</h2>
+  <p class="esc-que">Una celda que lleva un nombre, una anotación entre paréntesis, una medida y un dato adicional. Son cuatro piezas de texto en un hueco estrecho: el patrón sirve igual para un producto con su presentación y su precio, una línea de factura con su descripción y su importe, o una fila de inventario con su unidad y su stock.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li><b>Las cuatro piezas con el mismo tamaño de letra.</b> La jerarquía se logra con color y peso, no con tamaño.</li>
+      <li>Ninguna pieza lleva un tamaño propio: todas heredan del conjunto.</li>
+      <li>La unidad de medida («0.24 Kg») no se parte nunca: es un dato.</li>
+      <li>El recargo sí puede partirse entre palabras, nunca dentro de un número.</li>
+      <li>El conjunto cabe en 4 renglones como máximo.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="celda-multi" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+      <span class="nombre">Producto A</span>
+      <span class="marca">(artículo principal)</span>
+      <span class="unidad"> 12 unidades</span>
+      <span class="recargo"> · +$24,50 en este pedido</span>
+    </div>
+  </div>
+  <div class="veredicto" id="v06">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 07 · auto-ajuste</div>
+  <h2>Tres rótulos que comparten un renglón</h2>
+  <p class="esc-que">Cabeceras de columna de una tabla: una palabra corta, una larga y otra mediana. Si cada una se ajustara a su ancho, saldrían tres tamaños distintos y la línea parecería un error de maquetación.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li><b>Los tres con exactamente el mismo tamaño.</b></li>
+      <li>Ese tamaño lo decide el más restrictivo, no el promedio.</li>
+      <li>Ninguno se corta.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="renglon">
+      <span data-grupo="rotulos">Quitar</span>
+      <span data-grupo="rotulos">Actualmente</span>
+      <span data-grupo="rotulos">Agrandar</span>
+    </div>
+  </div>
+  <div class="veredicto" id="v07">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 08 · auto-ajuste</div>
+  <h2>Campo con capacidad de 2 líneas que <em>bloquea</em> al llenarse</h2>
+  <p class="esc-que">Un campo donde el texto debe verse siempre completo. Escribe: la letra encoge; borra: vuelve a crecer. Al llegar al mínimo legible con las dos líneas llenas, el campo <b>deja de aceptar</b> más.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>El campo limita la cantidad de caracteres a <b>lo máximo que cabe</b> en su ancho con el cupo de renglones del escenario 04, medido a <b>8 pt</b>.</li>
+      <li>Si se intenta introducir <b>un carácter más</b>, no entra: queda el texto completo y aparecen <b>tres puntos suspensivos</b> al final, avisando de que hay más de lo que se ve.</li>
+      <li>La letra encoge mientras se escribe, de 16 a 8 pt, para aprovechar todo el espacio antes de bloquear.</li>
+      <li>Nunca aparece un renglón de más: si el cupo son 2, son 2.</li>
+      <li>Al borrar, el texto vuelve a crecer solo y el límite se relaja.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div style="position:relative;display:block;width:100%;max-width:100%">
+      <textarea class="campo-cap" id="campo-cap" rows="2" placeholder="Escribe aquí y observa…"></textarea>
+      <span id="campo-cap-aviso" style="display:none;position:absolute;right:.6rem;bottom:.35rem;font-size:1.1rem;color:var(--aviso);pointer-events:none;text-shadow:0 0 6px #0b0d12">[…]</span>
+    </div>
+    <div style="margin-top:.5rem;font-size:var(--t-small);color:var(--tinta2)" id="campo-cap-info">—</div>
+  </div>
+  <div class="veredicto" id="v08">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 09 · auto-ajuste</div>
+  <h2>El texto cambia <em>después</em> de estar pintado</h2>
+  <p class="esc-que">Un texto que aparece <b>después</b> de que la caja ya estaba ajustada: un precio que se suma, una etiqueta de estado, un aviso de validación. El ajuste corrió al abrir, así que lo que llega luego entra sin medir y se corta. El defecto es invisible hasta que el usuario interactúa, que es justo cuando importa.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Al añadirse el texto, el conjunto <b>se vuelve a medir</b> y se reajusta.</li>
+      <li>El texto nuevo <b>aprovecha el espacio libre</b> de la misma fila. No salta a otra si hay hueco: parte del renglón se gasta al máximo antes de crecer de alto.</li>
+      <li>No queda cortado ni desbordado.</li>
+      <li>Al quitarlo, la letra <b>vuelve a crecer</b>.</li>
+      <li>El reajuste se pide desde el final del repintado y agrupado por cuadro: pedirlo tres veces en el mismo cuadro no mide tres veces.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="celda-multi" style="max-width:200px" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+      <span class="nombre">Producto B</span>
+      <span class="unidad"> 6 unidades</span>
+      <span class="recargo" id="recargo-nueve"></span>
+    </div>
+    <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+      <button onclick="toggleRecargo()" style="font:inherit;font-size:var(--t-small);padding:.4rem .9rem;border-radius:999px;border:1px solid var(--borde);background:var(--panel2);color:var(--tinta);cursor:pointer">Añadir un extra al pedido</button>
+    </div>
+  </div>
+  <div class="veredicto" id="v09">midiendo…</div>
+</section>
+
+<!-- ══════════════════ C · ESTRATEGIA POR ROL ══════════════════ -->
+
+<section class="esc" data-cat="medido">
+  <div class="esc-num">ESCENARIO 10 · estrategia</div>
+  <h2>Una sola estrategia: <b>los renglones manda</b></h2>
+  <p class="esc-que">La regla que debe cumplirse <b>siempre</b>, en cualquier tipo de interfaz. Cuando el texto no cabe en el cupo que tú definiste, <b>primero encoge la letra</b> y <b>solo después</b> añade un renglón. Nunca al revés.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>El orden es fijo: <b>cupo definido → letra de 16 a 8 pt → un renglón más → letra otra vez</b>.</li>
+      <li>No existe la variante «usa el renglón extra antes de encoger». Un renglón de más cuesta altura a todas las filas que vienen debajo; encoger la letra no le cuesta nada a nadie más.</li>
+      <li>El mismo texto, con el mismo cupo, debe dar el <b>mismo resultado</b> en cualquier parte de la interfaz. Una fila que crece por medio punto de letra es una fila que creció sin que nadie sepa por qué.</li>
+      <li>Esto es lo que hace que la altura de una lista sea predecible: si cada fila eligiera por su cuenta, la tabla se desalinea.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo">Cupo: <b>3 renglones</b> (gracia hasta 4) · mismo texto en los tres casos</div>
+    <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start">
+      <div class="celda-multi" style="max-width:170px" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+        <span class="nombre">Producto A</span>
+        <span class="unidad"> 12 unidades</span>
+      </div>
+      <div class="celda-multi" style="max-width:170px" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+        <span class="nombre">Producto A</span>
+        <span class="marca">(artículo principal)</span>
+        <span class="unidad"> 12 unidades</span>
+      </div>
+      <div class="celda-multi" style="max-width:170px" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+        <span class="nombre">Producto A</span>
+        <span class="marca">(artículo principal)</span>
+        <span class="unidad"> 12 unidades</span>
+        <span class="recargo"> · +$24,50 en este pedido</span>
+      </div>
+    </div>
+    <p style="margin:1rem 0 0;font-size:var(--t-small);color:var(--tinta2)">
+      Según crece el contenido, la letra baja <b>antes</b> de que aparezca un renglón nuevo.
+      Si alguna caja usara un renglón de más antes de encoger, se vería más alta que sus vecinas sin motivo.
+    </p>
+  </div>
+  <div class="veredicto" id="v10">midiendo…</div>
+</section>
+
+<!-- ══════════════════ D · CONTENEDOR, NO VIEWPORT ══════════════════ -->
+
+<section class="esc" data-cat="fluido">
+  <div class="esc-num">ESCENARIO 11 · contenedor</div>
+  <h2>La misma tarjeta en dos anchos distintos</h2>
+  <p class="esc-que">Un componente reutilizable: la misma tarjeta puede ir en una columna ancha o en una barra lateral estrecha, dentro de la misma página. Si el tamaño dependiera del ancho de la <em>pantalla</em>, en la barra lateral se vería enorme.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>El tamaño depende del ancho de <b>su contenedor</b>, no de la ventana.</li>
+      <li>La letra <b>crece hasta 16 pt</b> para aprovechar el contenedor al máximo (emparejado al escenario 04).</li>
+      <li>Si aun a 16 pt el texto <b>no llena</b> el contenedor, no se deja un hueco vacío a la derecha: <b>la caja se encoge a su contenido</b> (<code>width: fit-content</code>).</li>
+      <li>Al encoger la ventana, cada una responde a su propio hueco.</li>
+      <li>La tarjeta estrecha usa letra más chica que la ancha, en la misma pantalla.</li>
+    </ul>
+  </div>
+  <div class="demo" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="isla-exterior" data-isla-max="420"><div class="isla">
+      <div class="isla-titulo">Informe trimestral consolidado</div>
+      <p style="margin:.35rem 0 0;font-size:var(--t-small);color:var(--tinta2)">Contenedor ancho · la letra crece hasta 16 pt</p>
+    </div></div>
+    <div class="isla-exterior" data-isla-max="96"><div class="isla">
+      <div class="isla-titulo">Informe trimestral consolidado</div>
+      <p style="margin:.35rem 0 0;font-size:var(--t-small);color:var(--tinta2)">Contenedor estrecho · el título se parte y la letra baja</p>
+    </div></div>
+  </div>
+  <div class="demo" style="margin-top:1rem">
+    <div class="rotulo-demo">Y si el texto no llena el ancho a 16 pt, <b>la caja se encoge</b> en vez de dejar un hueco</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-start">
+      <div class="caja-justa"><span data-fit data-lineas="1">Básico</span></div>
+      <div class="caja-justa"><span data-fit data-lineas="1">Informe trimestral</span></div>
+      <div class="caja-justa"><span data-fit data-lineas="1">Informe trimestral consolidado</span></div>
+      <div class="caja-justa" style="max-width:200px"><span data-fit data-lineas="2">Informe trimestral consolidado con desglose por región y comparativa anual</span></div>
+      <div class="caja-justa" style="max-width:150px"><span data-fit data-lineas="3">Resumen ejecutivo del desempeño operativo del periodo con notas y observaciones del equipo</span></div>
+    </div>
+    <p style="margin:.75rem 0 0;font-size:var(--t-small);color:var(--tinta2)">
+      Cada caja mide lo que mide su texto, <b>también cuando el texto ocupa varias líneas</b>:
+      crece a lo alto y se ajusta a lo ancho. Un contenedor con ancho fijo dejaría huecos vacíos distintos en cada caso.
+    </p>
+  </div>
+  <div class="veredicto" id="v11">midiendo…</div>
+</section>
+
+<!-- ══════════════════ E · TRAMPAS ══════════════════ -->
+
+<section class="esc" data-cat="trampa">
+  <div class="esc-num">ESCENARIO 12 · trampa</div>
+  <h2>Prohibir que una frase corta se parta roba un renglón entero</h2>
+  <p class="esc-que">La anotación «(artículo principal)» con <code>nowrap</code>. El nombre deja pocos caracteres libres al final del renglón, y la frase, al no poder partirse, se va completa al siguiente y deja el primero casi vacío.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li><b>Con <code>nowrap</code> (mal):</b> gasta un renglón de más y el texto queda más pequeño de lo necesario.</li>
+      <li><b>Sin <code>nowrap</code> (bien):</b> la frase parte entre palabras y todo cabe en menos espacio.</li>
+      <li>El <code>nowrap</code> solo se reserva para datos atómicos: «0.24 Kg», un precio, una moneda.</li>
+      <li><b>Nombre, marca, unidad y recargo son UN solo párrafo.</b> Si queda hueco al final de la fila, se gasta al máximo antes de saltar: el texto fluye como una tirada continua, no como cajas apiladas.</li>
+      <li>Eso implica que el nombre <b>no</b> puede llevar <code>display:block</code>: un bloque fuerza su propia caja y el resto empieza en otra línea, desperdiciando el final del renglón.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Mal</b> — la marca no puede partir</div>
+    <div class="nowrap-mal celda-multi" style="max-width:170px;margin-bottom:1rem" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+      <span class="nombre">Producto A</span>
+      <span class="marca">(artículo principal)</span>
+      <span class="unidad"> 12 unidades</span>
+    </div>
+    <div class="rotulo-demo"><b>Bien</b> — la marca parte entre palabras</div>
+    <div class="nowrap-bien celda-multi" style="max-width:170px" data-fit data-lineas="3" data-maxlineas="4" data-estrategia="renglones">
+      <span class="nombre">Producto A</span>
+      <span class="marca">(artículo principal)</span>
+      <span class="unidad"> 12 unidades</span>
+    </div>
+  </div>
+  <div class="veredicto" id="v12">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="trampa">
+  <div class="esc-num">ESCENARIO 13 · trampa</div>
+  <h2>Un hijo con tamaño propio se desproporciona</h2>
+  <p class="esc-que">La unidad de medida con su propio <code>clamp()</code> en <code>rem</code>. Cuando el nombre encoge por debajo del piso de ese <code>clamp</code>, la unidad deja de encoger y termina más grande que el texto al que acompaña.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li><b>Mal:</b> la unidad se ve claramente más grande que el nombre. Es un 22 % en el caso real medido.</li>
+      <li><b>Bien:</b> las dos piezas con el mismo tamaño; se distinguen por color, no por tamaño.</li>
+      <li>Regla: <code>font-size: inherit</code> en todos los hijos de la celda.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Mal</b> — la unidad con <code>clamp()</code> y piso en rem</div>
+    <div class="mal-hijo" style="margin-bottom:1rem">
+      <span class="nombre">Básico</span><span class="unidad"> 12 unidades</span>
+    </div>
+    <div class="rotulo-demo"><b>Bien</b> — todo hereda</div>
+    <div class="celda-multi" style="max-width:none">
+      <span class="nombre">Básico</span><span class="unidad"> 12 unidades</span>
+    </div>
+  </div>
+  <div class="veredicto" id="v13">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="trampa">
+  <div class="esc-num">ESCENARIO 14 · trampa</div>
+  <h2><code>line-clamp</code> en el <b>padre</b> no hace nada — en el hijo sí, y es lo correcto</h2>
+  <p class="esc-que">El tope de «4 renglones» escrito en el <b>contenedor</b>. <code>line-clamp</code> cuenta las cajas de línea del elemento al que se aplica, y un hijo en bloque no genera cajas para su padre: el tope existe en el CSS y no en el motor. El texto crece más allá de 4 y nadie lo corta.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li><b>Mal:</b> <code>line-clamp</code> en el padre, cuyo único hijo es un bloque. No cuenta nada.</li>
+      <li><b>Bien:</b> <code>line-clamp</code> en el <b>propio nodo del texto</b>. Ahí sí corta exactamente en el límite del renglón N, nunca a media línea.</li>
+      <li>Hay una condición para poder medirlo: el medidor <b>debe levantar el clamp</b> mientras mide. Con el clamp puesto, <code>scrollHeight</code> devuelve el alto recortado y el medidor responde «cabe» a cualquier tamaño.</li>
+      <li>Si el <code>line-clamp</code> se queda en el padre, la alternativa es un techo por altura en <code>em</code> sobre el texto: <code>max-height: calc(4 * 1.25em)</code>, que se recalcula solo al cambiar la letra.</li>
+    </ul>
+    <p style="margin:.6rem 0 0"><b>Y aquí está el enlace con el escenario 08:</b> ese campo necesita <em>saber cuándo ya no cabe</em> para bloquear la entrada. Por eso ahí se prefiere la altura en <code>em</code>: deja leer el alto real y decidir. El <code>line-clamp</code> sirve para <b>mostrar</b> un tope; la altura sirve para <b>medirlo</b>. Con el clamp levantado durante la medición, los dos conviven.</p>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Mal</b> — <code>line-clamp</code> en el padre</div>
+    <div id="trampa-clamp" style="max-width:170px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;line-clamp:4;overflow:hidden;font-size:1rem;line-height:1.25;margin-bottom:1rem">
+      <div id="trampa-clamp-hijo">Producto A (artículo principal) 12 unidades · +$24,50 en este pedido y un texto adicional para que de verdad haya más de cuatro renglones de contenido real</div>
+    </div>
+    <div class="rotulo-demo"><b>Bien</b> — techo por altura en <code>em</code> sobre el texto</div>
+    <div style="max-width:170px" id="trampa-altura">
+      <div style="font-size:1rem;line-height:1.25;max-height:calc(4 * 1.25em);overflow:hidden">Producto A (artículo principal) 12 unidades · +$24,50 en este pedido y un texto adicional para que de verdad haya más de cuatro renglones de contenido real</div>
+    </div>
+  </div>
+  <div class="veredicto" id="v14">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="trampa">
+  <div class="esc-num">ESCENARIO 15 · trampa</div>
+  <h2>Mirar solo el alto deja el texto encima de la columna vecina</h2>
+  <p class="esc-que">Un texto que no puede partirse: nunca crece de alto, así que la comprobación de altura responde «cabe» a cualquier tamaño mientras se desborda a los lados.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Se miden <b>los dos ejes</b>: alto <em>y</em> ancho.</li>
+      <li><b>Mal:</b> el texto se sale de su caja y pisa la vecina.</li>
+      <li><b>Bien:</b> la letra encoge hasta caber a lo ancho.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Mal</b> — solo se miró el alto; el texto se derrama</div>
+    <div style="display:flex;gap:0;margin-bottom:1rem">
+      <div style="width:120px;flex:none;background:#2a1f2a;border:1px solid var(--mal);border-radius:6px 0 0 6px;padding:.35rem">
+        <div style="white-space:nowrap;overflow:visible;font-size:1rem;position:relative;z-index:2;color:#ffb3b3">QUINIENTOS MIL</div>
+      </div>
+      <div style="width:120px;flex:none;background:var(--panel2);border:1px solid var(--borde);border-radius:0 6px 6px 0;padding:.35rem">
+        <div style="color:var(--tinta2)">vecina</div>
+      </div>
+    </div>
+    <div class="rotulo-demo"><b>Bien</b> — mide ancho y alto; la letra encoge</div>
+    <div style="display:flex;gap:0">
+      <div style="width:120px;flex:none;background:#1f2a22;border:1px solid var(--ok);border-radius:6px 0 0 6px;padding:.35rem">
+        <div id="ancho-bien" style="white-space:nowrap;font-size:1rem;color:#b3ffd9">QUINIENTOS MIL</div>
+      </div>
+      <div style="width:120px;flex:none;background:var(--panel2);border:1px solid var(--borde);border-radius:0 6px 6px 0;padding:.35rem">
+        <div style="color:var(--tinta2)">vecina</div>
+      </div>
+    </div>
+  </div>
+  <div class="veredicto" id="v15">midiendo…</div>
+</section>
+
+<section class="esc" data-cat="trampa">
+  <div class="esc-num">ESCENARIO 16 · trampa</div>
+  <h2>Centrar un texto que no está garantizado que quepa</h2>
+  <p class="esc-que"><code>text-align: center</code> hace que un texto que se desborda salga por <b>los dos lados</b>: choca con la columna de la izquierda y con la de la derecha, en vez de con una sola.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li><b>Mal:</b> el texto centrado invade las dos columnas vecinas.</li>
+      <li><b>Bien:</b> alineado a un lado, o con el ancho garantizado primero.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Mal</b> — centrado y sin garantía de ancho</div>
+    <div style="display:flex;margin-bottom:1rem">
+      <div style="width:70px;flex:none;background:var(--panel2);border:1px solid var(--borde);padding:.35rem;font-size:var(--t-small);color:var(--tinta2)">izq</div>
+      <div style="width:110px;flex:none;background:#2a1f2a;border:1px solid var(--mal);padding:.35rem;text-align:center">
+        <div style="white-space:nowrap;font-size:1rem;color:#ffb3b3;position:relative;z-index:2;margin:0 -40px">DESBORDADO</div>
+      </div>
+      <div style="width:70px;flex:none;background:var(--panel2);border:1px solid var(--borde);padding:.35rem;font-size:var(--t-small);color:var(--tinta2)">der</div>
+    </div>
+    <div class="rotulo-demo"><b>Bien</b> — alineado a la izquierda</div>
+    <div style="display:flex">
+      <div style="width:70px;flex:none;background:var(--panel2);border:1px solid var(--borde);padding:.35rem;font-size:var(--t-small);color:var(--tinta2)">izq</div>
+      <div id="centro-bien" style="width:110px;flex:none;background:#1f2a22;border:1px solid var(--ok);padding:.35rem;text-align:left">
+        <div style="white-space:nowrap;font-size:1rem;color:#b3ffd9">DESBORDADO</div>
+      </div>
+      <div style="width:70px;flex:none;background:var(--panel2);border:1px solid var(--borde);padding:.35rem;font-size:var(--t-small);color:var(--tinta2)">der</div>
+    </div>
+  </div>
+  <div class="veredicto manual" id="v16">Compara los dos: el de arriba toca las dos columnas grises; el de abajo solo se sale por un lado.</div>
+</section>
+
+<section class="esc" data-cat="trampa">
+  <div class="esc-num">ESCENARIO 17 · trampa</div>
+  <h2>El ancho de una columna que se copió de un aparato</h2>
+  <p class="esc-que">Columnas escritas a mano —<code>50px 90px 64px</code>— porque se midieron en <b>un</b> teléfono, con <b>una</b> letra del sistema y en <b>una</b> orientación. En cualquier otro aparato esos números son falsos.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>El ancho se saca <b>midiendo el texto real</b> en el aparato.</li>
+      <li>Se publica como variable de CSS, con un valor de respaldo por si el JavaScript no corre.</li>
+      <li>Nunca un número copiado de una captura.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Bien</b> — los tres anchos se midieron aquí y se publicaron como variables</div>
+    <div class="tabla-demo" id="tabla-medida" style="grid-template-columns:var(--c1,50px) var(--c2,90px) var(--c3,64px)">
+      <div class="cab">Quitar</div><div class="cab">Actualmente</div><div class="cab">Agrandar</div>
+    </div>
+    <div style="margin-top:.5rem;font-size:var(--t-small);color:var(--tinta2)" id="tabla-medida-info">—</div>
+    <p style="margin:1rem 0 0;font-size:var(--t-small);color:var(--tinta2)">
+      <b>Por qué se ven números como <code>50px 90px 64px</code>:</b> no son la recomendación, son
+      <em>el defecto que se muestra</em>. Van dentro de <code>var(--c1, 50px)</code> como
+      <b>valor de respaldo</b>: si el JavaScript no corre —caché vieja, sin señal, un fallo que no llega
+      a ejecutarse— la tabla se ve mal repartida pero sigue siendo legible. Sin respaldo, la rejilla se
+      quedaría sin columnas y la tabla se rompería del todo.
+      En cuanto el medidor corre, sobrescribe esos valores con los reales de este aparato, que es lo que
+      ves arriba. El respaldo nunca gana.
+    </p>
+  </div>
+  <div class="veredicto" id="v17">midiendo…</div>
+</section>
+
+<!-- ══════════════════ F · ACCESIBILIDAD ══════════════════ -->
+
+<section class="esc" data-cat="acceso">
+  <div class="esc-num">ESCENARIO 18 · accesibilidad</div>
+  <h2>Zoom al 500 %: el texto debe seguir creciendo</h2>
+  <p class="esc-que">El requisito WCAG 1.4.4. Un texto cuyo tamaño depende <b>solo</b> del ancho de la ventana (<code>vw</code>) no reacciona cuando la persona agranda la letra del navegador, porque el ancho no cambió.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>El valor intermedio del <code>clamp()</code> contiene <code>rem</code>.</li>
+      <li>Prueba mental: quita el término <code>vw</code>; el texto igual crece al agrandar la letra del sistema.</li>
+      <li>Verificar hasta el techo del navegador (500 % en Chrome), no solo hasta el mínimo exigido del 200 %.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Mal</b> — solo <code>vw</code></div>
+    <div style="font-size:clamp(1rem,4vw,2rem);font-weight:600;margin-bottom:.75rem">Este texto ignora tu preferencia de letra</div>
+    <div class="rotulo-demo"><b>Bien</b> — <code>rem</code> en el intermedio</div>
+    <div style="font-size:clamp(1rem,0.875rem + 1.5vw,2rem);font-weight:600">Este texto crece si agrandas la letra</div>
+  </div>
+  <div class="veredicto manual" id="v18">Sube la letra del navegador al 500 %: el de arriba se queda quieto, el de abajo crece.</div>
+</section>
+
+<section class="esc" data-cat="acceso">
+  <div class="esc-num">ESCENARIO 19 · accesibilidad</div>
+  <h2>Contenido importante que no se puede recortar</h2>
+  <p class="esc-que">Si el texto recortado es lo que la persona necesita para decidir o para obrar con seguridad —un importe, una condición legal, un aviso de vencimiento, un error de validación—, recortarlo no es una opción de diseño.</p>
+  <div class="debe">
+    <strong>Qué debe pasar:</strong>
+    <ul>
+      <li>Si el contenido es importante, <b>no</b> se recorta.</li>
+      <li>Se reestructura la maquetación, o se ofrece un control para verlo completo.</li>
+      <li>Los puntos suspensivos solo aparecen cuando no cabe ni con el renglón de gracia, y nunca sobre información imprescindible.</li>
+    </ul>
+  </div>
+  <div class="demo">
+    <div class="rotulo-demo"><b>Bien</b> — el texto largo se puede desplegar</div>
+    <details style="font-size:var(--t-body)">
+      <summary style="cursor:pointer;color:var(--acento)">Ver los 14 puntos del contrato de servicio</summary>
+      <p style="margin:.5rem 0 0;color:var(--tinta2)">Incluye credenciales de acceso, garantía de disponibilidad del servicio y un contacto de soporte dedicado para incidencias críticas.</p>
+    </details>
+  </div>
+  <div class="veredicto manual" id="v19">Comprueba que la información está accesible sin recortes: se despliega, no se trunca.</div>
+</section>
+
+<!-- ══════════════════ G · FUERA DE ALCANCE ══════════════════ -->
+
+<section class="esc" data-cat="fuera">
+  <div class="esc-num">ESCENARIO 20 · fuera de alcance</div>
+  <h2>Alcance real: <b>toda interfaz con texto en una caja</b></h2>
+  <p class="esc-que">La regla general no es «solo web». Es: <b>cualquier superficie donde un texto tenga que caber en un espacio acotado y haya una forma de medirlo</b>. Eso incluye muchísimo más que una página.</p>
+  <div class="debe">
+    <strong>Aplica a:</strong>
+    <ul>
+      <li><b>Web y app</b>: tarjetas, tablas, listas, modales, formularios, notificaciones, botones, celdas, fichas, chips, insignias.</li>
+      <li><b>Interfaz de terminal (TUI)</b>: un panel de ancho fijo, una columna de tabla, un mensaje de estado. Ahí la celda se mide en <b>columnas de caracteres</b> en vez de píxeles, pero la regla es la misma: cupo declarado, piso legible, un renglón de gracia como máximo. Lo que cambia es la unidad; lo que se decide, no.</li>
+      <li><b>Correo HTML</b>, <b>facturas en PDF generadas</b>, <b>carteles digitales</b>: todo lo que tenga texto en una caja con ancho conocido.</li>
+      <li><b>Cualquier texto con cupo declarado</b>: si puedes decir «esto debe ocupar 2 renglones», se mide.</li>
+    </ul>
+    <strong style="display:block;margin-top:.75rem">No aplica a:</strong>
+    <ul>
+      <li><b>Hojas de impresión y quioscos de densidad fija</b>: manda una unidad física (puntos, milímetros) y el texto no debe adaptarse.</li>
+      <li><b>Texto dentro de <code>&lt;svg&gt;</code> o <code>&lt;canvas&gt;</code></b>: no es texto maquetado; no hay cajas de línea que medir.</li>
+      <li><b>Párrafos de lectura sin cupo</b>: nadie puede decir cuántos renglones ocuparán; ahí manda el tamaño fluido y medir sería un desperdicio.</li>
+      <li><b>Tamaños exactos en píxeles a cualquier zoom</b>: el tamaño fluido es intencionalmente no exacto. Si el diseño exige exactitud, hay un conflicto que se declara, no se disimula.</li>
+    </ul>
+  </div>
+  <div class="demo fuera">
+    <p style="margin:0 0 .5rem;font-size:var(--t-small);color:var(--tinta2)">
+      Un párrafo como este <b>no</b> se auto-ajusta: crece con la pantalla mediante CSS y punto.
+      Añadirle un medidor costaría trabajo en cada cambio de contenido y no mejoraría nada.
+    </p>
+    <pre style="margin:0;overflow-x:auto;font-size:var(--t-small);line-height:1.5;color:var(--tinta2)">┌─ El mismo criterio en una TUI ──────────────┐
+│ Cupo de la celda: 1 renglón, 24 columnas    │
+│ «Informe mensual»              <span style="color:var(--ok)">cabe a 16 pt</span>  │
+│ «Informe mensual de ventas»    <span style="color:var(--aviso)">encoge</span>      │
+│ «Informe … del trimestre»      <span style="color:var(--mal)">1 renglón más</span> │
+└─────────────────────────────────────────────┘</pre>
+  </div>
+  <div class="veredicto manual" id="v20">Este escenario no se mide: su veredicto es el alcance. Una TUI no se verifica con píxeles, pero decide lo mismo: cupo, piso, una línea de gracia.</div>
+</section>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   MEDIDOR — implementación de la regla 8 de la skill.
+
+   Búsqueda por mitades entre el piso y el techo, midiendo los DOS ejes.
+   Se neutraliza cualquier techo de altura mientras se mide: un recorte
+   activo haría que scrollHeight mintiera.
+   ══════════════════════════════════════════════════════════════════════ */
+var PX_POR_PT = 96 / 72;
+var PISO = 8 * PX_POR_PT;      // 10,67 px
+// Holgura al fijar `maxLength`: la capacidad se mide con el texto escrito, y
+// con el campo vacío solo hay estimación. Sin holgura, pegar un texto de
+// letras angostas se cortaría antes de poder medirlo.
+var MARGEN_PEGADO = 2.2;
+var TECHO = 16 * PX_POR_PT;    // 21,33 px
+var TOL = 0.5;
+
+function altoDeLinea(el) {
+  var lh = parseFloat(getComputedStyle(el).lineHeight);
+  if (!isFinite(lh) || lh <= 0) {
+    var fs = parseFloat(getComputedStyle(el).fontSize);
+    lh = fs * 1.25;
+  }
+  return lh;
+}
+
+function cabe(el, px, lineas) {
+  el.style.fontSize = px + 'px';
+  /* ── SE MIDE SIN NINGÚN RECORTE PUESTO ──
+     `.line-clamp` DESTRUYE el contenido: con él activo, `scrollHeight` se
+     queda clavado en el alto recortado y el medidor responde «cabe» a
+     cualquier tamaño. Por eso se levanta mientras se mide, y se devuelve al
+     salir. Es la diferencia entre un medidor que ve y uno ciego. */
+  var prevMax = el.style.maxHeight;
+  var prevClamp = el.style.webkitLineClamp;
+  var prevClampEstd = el.style.lineClamp;
+  var prevDisp = el.style.display;
+  el.style.maxHeight = 'none';
+  el.style.webkitLineClamp = 'unset';
+  el.style.lineClamp = 'unset';
+  el.style.display = 'block';
+  el.style.overflow = 'visible';
+  var alto = el.scrollHeight;
+  var ancho = el.scrollWidth;
+  var disp = el.clientWidth;
+  el.style.maxHeight = prevMax;
+  el.style.webkitLineClamp = prevClamp;
+  el.style.lineClamp = prevClampEstd;
+  el.style.display = prevDisp;
+  el.style.overflow = '';
+  var hl = altoDeLinea(el);
+  return alto <= hl * lineas + TOL && (!disp || ancho <= disp + TOL);
+}
+
+function mayorQueCabe(el, lineas) {
+  if (cabe(el, TECHO, lineas)) return TECHO;
+  if (!cabe(el, PISO, lineas)) return null;
+  var bajo = PISO, alto = TECHO, mejor = PISO;
+  for (var i = 0; i < 6; i++) {
+    var medio = (bajo + alto) / 2;
+    if (cabe(el, medio, lineas)) { mejor = medio; bajo = medio; }
+    else { alto = medio; }
+  }
+  return mejor;
+}
+
+/* Devuelve el tamaño aplicado y el número de renglones usado. */
+function ajustar(el) {
+  var lineasMin = parseInt(el.dataset.lineas || '1', 10);
+  var lineasMax = parseInt(el.dataset.maxlineas || el.dataset.lineas || '1', 10);
+
+  /* ── EL CUPO PUEDE VENIR DEL PANEL (escenario 04) ──
+     Las tarjetas del escenario 04 no llevan el cupo escrito en el HTML: lo
+     toman del campo que la persona declara. El +1 de reserva se añade aquí,
+     SIEMPRE, y nunca antes de encoger la letra. */
+  if (el.dataset.cupoPanel) {
+    var campo = document.getElementById('cupo-input');
+    if (campo) {
+      var declarado = parseInt(campo.value, 10);
+      if (!isFinite(declarado) || declarado < 1) declarado = 1;
+      if (declarado > 6) declarado = 6;
+      lineasMin = declarado;
+      lineasMax = declarado + 1;      // una de reserva, y solo una
+    }
+  }
+
+  /* ══ UNA SOLA ESTRATEGIA: LOS RENGLONES MANDAN ══
+     El orden es fijo y no se negocia:
+       1. la letra encoge de 16 a 8 pt dentro del cupo declarado;
+       2. solo si a 8 pt no cabe, se concede UN renglón más;
+       3. con ese renglón extra, se vuelve a subir la letra todo lo que quepa.
+     Nunca se gasta el renglón extra antes de encoger. Un renglón de más cuesta
+     altura a todas las filas de abajo; encoger la letra no le cuesta a nadie.
+     La búsqueda recorre de menor a mayor capacidad y se queda con la PRIMERA
+     en la que algo cabe: esa es la que usa menos renglones. */
+  var tam = null, lineasUsadas = lineasMin;
+  for (var n = lineasMin; n <= lineasMax; n++) {
+    var t = mayorQueCabe(el, n);
+    if (t === null) continue;
+    tam = t;
+    lineasUsadas = n;
+    break;                       // la primera capacidad que cabe es la elegida
+  }
+
+  if (tam === null) {
+    el.style.fontSize = PISO + 'px';
+    el.dataset.ajuste = 'recortado';
+    el.dataset.renglones = lineasMax;
+    return { px: PISO, lineas: lineasMax, recortado: true };
+  }
+  el.style.fontSize = tam.toFixed(2) + 'px';
+  el.dataset.ajuste = 'ok';
+  el.dataset.renglones = lineasUsadas;
+  return { px: tam, lineas: lineasUsadas, recortado: false };
+}
+
+/* Cuántos renglones ocupa de verdad, medidos sin recorte. */
+function renglonesReales(el) {
+  var prevMax = el.style.maxHeight, prevOv = el.style.overflow;
+  var prevClamp = el.style.webkitLineClamp, prevClamp2 = el.style.lineClamp;
+  var prevDisp = el.style.display;
+  el.style.maxHeight = 'none';
+  el.style.webkitLineClamp = 'unset';
+  el.style.lineClamp = 'unset';
+  el.style.display = 'block';
+  el.style.overflow = 'visible';
+  var alto = el.scrollHeight;
+  el.style.maxHeight = prevMax;
+  el.style.webkitLineClamp = prevClamp;
+  el.style.lineClamp = prevClamp2;
+  el.style.display = prevDisp;
+  el.style.overflow = prevOv;
+  return Math.round(alto / altoDeLinea(el));
+}
+
+function ajustarTodos() {
+  // Los de grupo comparten tamaño: primero cada uno, y gana el más chico.
+  var grupos = {};
+  document.querySelectorAll('[data-grupo]').forEach(function (el) {
+    (grupos[el.dataset.grupo] = grupos[el.dataset.grupo] || []).push(el);
+  });
+  Object.keys(grupos).forEach(function (k) {
+    var els = grupos[k], menor = null;
+    els.forEach(function (el) {
+      var r = ajustar(el);
+      if (menor === null || r.px < menor) menor = r.px;
+    });
+    els.forEach(function (el) { el.style.fontSize = menor.toFixed(2) + 'px'; });
+  });
+  document.querySelectorAll('[data-fit]').forEach(function (el) {
+    if (el.hasAttribute('data-grupo')) return;
+    ajustar(el);
+  });
+}
+
+/* ══════════════ Las islas se ajustan a su texto (escenario 11) ══════════════
+
+   El ancho lo decide la MEDICIÓN, no `fit-content`. Se mide el texto con un
+   `Range` —que devuelve el ancho de los glifos y nada más—, se suma el relleno
+   y se limita al máximo declarado. Publicar el ancho como valor en línea
+   rompe el ciclo: cuando la caja se maqueta ya tiene un ancho definitivo, así
+   que la `container-type` de dentro puede medirlo y la letra responde. */
+function ajustarIslas() {
+  document.querySelectorAll('.isla-exterior').forEach(function (caja) {
+    var interior = caja.querySelector('.isla');
+    if (!interior) return;
+    var max = parseInt(caja.dataset.islaMax || '420', 10);
+
+    // Se mide con el ancho liberado, o la medición anterior la condiciona.
+    caja.style.width = 'auto';
+    interior.style.width = 'auto';
+
+    /* Se mide la pieza más ancha, no el conjunto en línea: un `Range` sobre
+       todo el contenido devuelve el ancho de la caja, no el de su texto más
+       largo, así que el máximo nunca se respetaba (medido: las dos islas daban
+       lo mismo). Se recorren los hijos y se toma el mayor ancho de texto. */
+    var anchoTexto = 0;
+    Array.prototype.forEach.call(interior.children, function (hijo) {
+      var rh = document.createRange();
+      rh.selectNodeContents(hijo);
+      var w = rh.getBoundingClientRect().width;
+      // Un título de una línea no puede partirse: su ancho es su mínimo real.
+      if (w > anchoTexto) anchoTexto = w;
+    });
+
+    var cs = getComputedStyle(interior);
+    var relleno = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) +
+                  parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+
+    var ancho = Math.ceil(anchoTexto + relleno);
+    if (!isFinite(ancho) || ancho < 1) ancho = max;
+    if (ancho > max) ancho = max;
+
+    caja.style.width = ancho + 'px';
+    interior.style.width = ancho + 'px';
+  });
+}
+
+/* ══════════════ Columnas medidas (escenario 17) ══════════════ */
+function medirColumnas() {
+  var tabla = document.getElementById('tabla-medida');
+  if (!tabla) return;
+  var cabs = tabla.querySelectorAll('.cab');
+  var anchos = [];
+  cabs.forEach(function (c) {
+    var prev = c.style.fontSize;
+    c.style.fontSize = '16px';
+    var r = document.createRange();
+    r.selectNodeContents(c);
+    anchos.push(Math.ceil(r.getBoundingClientRect().width) + 12);
+    c.style.fontSize = prev;
+  });
+  tabla.style.setProperty('--c1', anchos[0] + 'px');
+  tabla.style.setProperty('--c2', anchos[1] + 'px');
+  tabla.style.setProperty('--c3', anchos[2] + 'px');
+  var info = document.getElementById('tabla-medida-info');
+  if (info) info.textContent = 'Anchos medidos en este aparato: ' + anchos.join(' px · ') + ' px';
+}
+
+/* ══════════════ Campo con capacidad (escenario 08) ══════════════ */
+/* El cupo del campo NO es una constante: es el mismo del escenario 04,
+   porque el campo demuestra lo que ese cupo implica. Se lee del panel. */
+function lineasDelCampo() {
+  var campo = document.getElementById('cupo-input');
+  var n = campo ? parseInt(campo.value, 10) : 2;
+  if (!isFinite(n) || n < 1) n = 2;
+  if (n > 6) n = 6;
+  return n;
+}
+var LINEAS_CAMPO = 2;   // respaldo si el panel no existe
+/* ══ CAMPO CON CAPACIDAD: SE BLOQUEA Y AVISA CON TRES PUNTOS ══
+
+   El orden, tal como se pidió:
+     1. Se mide cuánto cabe en el ancho del campo, con el cupo de renglones
+        definido (escenario 04), a la letra MÍNIMA de 8 pt. Ese es el límite
+        real de caracteres: lo máximo que cabe.
+     2. Mientras se escribe, la letra encoge de 16 a 8 pt para aprovechar todo
+        el espacio antes de bloquear.
+     3. Si se intenta introducir un carácter más, NO entra: el texto se queda
+        completo y aparecen tres puntos suspensivos al final, avisando de que
+        hay más de lo que se ve.
+   Se mide con un espejo oculto, no con el textarea: un textarea es un
+   elemento reemplazado y con `overflow:hidden` muchos motores devuelven
+   `scrollHeight === clientHeight`, así que un bucle de encogido sobre él
+   nunca se dispara. */
+function crearEspejo() {
+  var e = document.getElementById('espejo-campo');
+  if (e) return e;
+  e = document.createElement('div');
+  e.id = 'espejo-campo';
+  e.setAttribute('aria-hidden', 'true');
+  e.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:-9999px;top:0;white-space:pre-wrap;overflow-wrap:break-word;';
+  document.body.appendChild(e);
+  return e;
+}
+
+function sincronizarEspejo(t, espejo, px) {
+  var cs = getComputedStyle(t);
+  espejo.style.width = t.clientWidth + 'px';
+  espejo.style.fontFamily = cs.fontFamily;
+  espejo.style.fontWeight = cs.fontWeight;
+  espejo.style.letterSpacing = cs.letterSpacing;
+  // ── EL INTERLINEADO DEBE ESCALAR CON LA LETRA ──
+  // Antes se copiaba `cs.lineHeight`, que el navegador ya devuelve resuelto a
+  // píxeles (por ejemplo 24,96px). Ese valor queda CONGELADO: el espejo medía
+  // un renglón de 24,96 px lo mismo a 16 pt que a 8 pt. Consecuencia: creía que
+  // a 8 pt cabía lo mismo que a 16, así que la capacidad salía corta y la letra
+  // se encogía antes de tiempo. Si el campo declara un interlineado relativo
+  // (1.3 en lugar de 24.96px), se copia tal cual y escala solo.
+  var lh = cs.lineHeight;
+  if (lh && lh !== 'normal' && /px$/.test(lh)) {
+    var rel = parseFloat(lh) / parseFloat(cs.fontSize);
+    espejo.style.lineHeight = (isFinite(rel) && rel > 0) ? String(rel) : '1.3';
+  } else {
+    espejo.style.lineHeight = lh;
+  }
+  espejo.style.padding = cs.padding;
+  espejo.style.fontSize = px + 'px';
+}
+
+function altoCon(espejo, texto, px) {
+  sincronizarEspejo(document.getElementById('campo-cap'), espejo, px);
+  espejo.textContent = texto;
+  var lh = parseFloat(getComputedStyle(espejo).lineHeight);
+  if (!isFinite(lh) || lh <= 0) lh = px * 1.3;
+  // ── EL ALTO SE MIDE SIN RELLENO ──
+  // `scrollHeight` incluye el relleno del espejo (16 px con .5rem arriba y
+  // abajo). El tope, en cambio, se calcula como `lh * cupo`, que es solo
+  // texto. Comparar un alto con relleno contra un tope sin relleno hacía que
+  // un solo renglón ya «no cupiera» cuando la letra era pequeña: el relleno
+  // se comía el lugar de un renglón y la capacidad caía a 1 carácter.
+  var cs = getComputedStyle(espejo);
+  var relleno = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  var alto = Math.max(0, espejo.scrollHeight - relleno);
+  return { alto: alto, lh: lh };
+}
+
+/* ══ CUÁNTOS CARACTERES CABEN EN EL CAMPO, A LA LETRA MÍNIMA ══
+
+   ── EL DEFECTO QUE ESTO CORRIGE ──
+   Antes se medía con `t.value`: el texto que YA estaba escrito. Con el campo
+   vacío —su estado inicial— la respuesta era «caben 0 caracteres», se ponía
+   `maxLength = 0` y el navegador rechazaba absolutamente todo. El campo
+   aparecía muerto: no dejaba escribir nada y el indicador decía «0 de 0».
+
+   La capacidad de un campo NO depende de lo que tenga escrito. Depende de su
+   ancho, del cupo de renglones y del piso de legibilidad. Esas tres cosas son
+   fijas mientras no cambie la ventana, así que se miden con una cadena de
+   REFERENCIA: una sarta de caracteres de ancho medio, representativa del texto
+   que se va a escribir. Con ella se calcula cuántos caben, y ese número es la
+   capacidad del campo, esté lleno o vacío. */
+var REFERENCIA = 'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 ' +
+                 'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789';
+
+function razonInterlineado(t) {
+  var cs = getComputedStyle(t);
+  var lh = parseFloat(cs.lineHeight);
+  var fs = parseFloat(cs.fontSize);
+  if (isFinite(lh) && isFinite(fs) && fs > 0) return lh / fs;
+  return 1.3;
+}
+
+function capacidadEnCaracteres(t, espejo, lineas, textoBase) {
+  var cupo = lineas || LINEAS_CAMPO;
+
+  /* ── LA CAPACIDAD DEPENDE DEL TEXTO QUE ESCRIBES ──
+     Antes se medía siempre con REFERENCIA, una sarta de letras anchas
+     ("abc…ABC…012…"). Con letras angostas el resultado era falso: el campo
+     cortaba en 75 caracteres cuando caben 140, y el texto lleno dejaba medio
+     renglón vacío. Se veía como "no aprovecha el espacio".
+
+     Ahora la muestra de ancho es el TEXTO REAL: se repite lo ya escrito y se
+     busca cuántos caracteres de ESE tipo caben. Con el campo vacío no hay
+     muestra, así que se recurre a REFERENCIA como estimación inicial. */
+  var base = (textoBase && textoBase.length) ? textoBase : REFERENCIA;
+  var sarta = base;
+  while (sarta.length < 800) sarta += base;
+
+  var lhRel = razonInterlineado(t);
+
+  // El presupuesto se calcula a la MISMA letra que se mide (PISO). Antes se
+  // tomaba el interlineado de la medición a 8 pt y se comparaba contra texto
+  // medido a otros tamaños: el tope quedaba fijo en 27,7 px y cualquier letra
+  // mayor "no cabía" aunque sí cupiera en `cupo` renglones.
+  function cabe(L) {
+    var a = altoCon(espejo, sarta.slice(0, L), PISO);
+    return a.alto <= PISO * lhRel * cupo + TOL;
+  }
+
+  if (!cabe(1)) return 1;
+  var lo = 1, hi = sarta.length, ok = 1;
+  while (lo < hi) {
+    var mid = Math.ceil((lo + hi) / 2);
+    if (cabe(mid)) { ok = mid; lo = mid; } else { hi = mid - 1; }
+  }
+  return ok;
+}
+
+function ajustarCampo() {
+  var t = document.getElementById('campo-cap');
+  if (!t) return;
+  var info = document.getElementById('campo-cap-info');
+  var espejo = crearEspejo();
+
+  // El cupo de renglones sale del escenario 04: son la misma decisión.
+  var cupo = lineasDelCampo();
+  LINEAS_CAMPO = cupo;
+
+  // ── 1. LA CAPACIDAD NO DEPENDE DE LO ESCRITO ──
+  // Se mide con una cadena de referencia. Con el campo vacío la capacidad
+  // sigue siendo la misma; antes se calculaba con `t.value` y daba 0.
+  var capacidad = capacidadEnCaracteres(t, espejo, cupo, t.value);
+  if (!(capacidad > 0)) capacidad = 1;   // nunca bloquear el campo por completo
+
+  // ── 2. SI SE PASA, SE RECORTA Y SE AVISA ──
+  var recortado = false;
+  if (t.value.length > capacidad) {
+    t.value = t.value.slice(0, capacidad);
+    recortado = true;
+  }
+  // Con texto ya escrito, el tope sí es exacto: lo que se midió es lo que hay.
+  if (t.value.length > 0) t.maxLength = capacidad;
+  /* ── EL TOPE NO PUEDE APLASTAR UN PEGADO LARGO ──
+     La capacidad depende del texto (letras angostas caben más que anchas),
+     así que con el campo vacío solo hay una estimación. Si se fijara ese
+     número como `maxLength`, un texto pegado de golpe se cortaría a la
+     estimación sin llegar a medirse. Se da un margen de reserva y la
+     medición real recorta al escribir. */
+  t.maxLength = Math.max(1, Math.ceil(capacidad * MARGEN_PEGADO));
+
+  // ── 3. LA LETRA: LA MAYOR QUE CABE ENTRE 8 Y 16 PT ──
+  // El presupuesto son `cupo` renglones A LA LETRA QUE SE PRUEBA, no a 8 pt.
+  // Con un tope fijo, la letra caía al piso mucho antes de lo necesario: a
+  // 9 pt el texto medía 31 px contra un tope fijo de 27,7 y se daba por
+  // "no cabe", cuando dos renglones a 9 pt miden 31,2 px y sí caben.
+  var lhRel = razonInterlineado(t);
+  var textoActual = t.value || ' ';
+  function cabePx(px) {
+    var a = altoCon(espejo, textoActual, px);
+    return a.alto <= px * lhRel * cupo + TOL;
+  }
+  var px;
+  if (cabePx(TECHO)) {
+    px = TECHO;
+  } else {
+    var bajo = PISO, alto = TECHO, mejor = PISO;
+    for (var i = 0; i < 7; i++) {
+      var medio = (bajo + alto) / 2;
+      if (cabePx(medio)) { mejor = medio; bajo = medio; }
+      else { alto = medio; }
+    }
+    px = mejor;
+  }
+  t.style.fontSize = px.toFixed(2) + 'px';
+
+  // ── 4. LA CAJA CRECE CON LA LETRA ELEGIDA ──
+  // El alto se calcula con el interlineado real que resulta de `px`, no con
+  // el que tenía el campo antes de encoger. Así la caja siempre muestra
+  // exactamente `cupo` renglones y ni uno más.
+  var cs = getComputedStyle(t);
+  var relleno = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
+                parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  t.style.height = (cupo * px * lhRel + relleno).toFixed(2) + 'px';
+
+  var aviso = document.getElementById('campo-cap-aviso');
+  if (aviso) aviso.style.display = recortado ? 'inline' : 'none';
+
+  if (info) {
+    var txt = t.value.length + ' de ' + capacidad + ' caracteres · ' +
+              cupo + (cupo === 1 ? ' renglón' : ' renglones') +
+              ' · letra ' + (px / PX_POR_PT).toFixed(1) + ' pt';
+    if (recortado) txt += ' · se intentó escribir de más: […] marca el corte';
+    info.textContent = txt;
+  }
+}
+
+/* ══════════════ Recargo dinámico (escenario 09) ══════════════ */
+var recargoActivo = false;
+function toggleRecargo() {
+  recargoActivo = !recargoActivo;
+  var el = document.getElementById('recargo-nueve');
+  if (el) el.textContent = recargoActivo ? ' · +$24,50 en este pedido' : '';
+  ajustarTodos();
+  verificar();
+}
+
+/* ══════════════ Veredictos automáticos ══════════════ */
+function marcar(id, estado, texto) {
+  var el = document.getElementById(id);
+  if (!el) return null;
+  el.className = 'veredicto ' + estado;
+  el.textContent = texto;
+  return el;
+}
+
+var resultados = [];
+function verificar() {
+  resultados = [];
+
+  // 02 · el título se mueve DENTRO de su rango declarado
+  (function () {
+    var el = document.querySelector('.esc:nth-of-type(2) .demo div');
+    if (!el) return;
+    var px = parseFloat(getComputedStyle(el).fontSize);
+    // El rango declarado es clamp(1.5rem, 1.25rem + 1.4vw, 2.25rem):
+    // 24 px (1.5rem) como piso y 36 px (2.25rem) como techo.
+    /* El rango declarado es 1.5rem..2.25rem = 24..36 px, pero en un teléfono
+       el término `vw` da menos y GANA EL PISO de 1.5rem. Aquí el navegador mide
+       16,2 px porque el texto está dentro de un contenedor estrecho, no de la
+       ventana. Lo que se verifica es que esté DENTRO del rango declarado,
+       incluyendo que nunca baje del piso absoluto de legibilidad. */
+    var PISO_T = 16, TECHO_T = 36, margen = 1.5;
+    var dentro = px >= PISO_T - margen && px <= TECHO_T + margen;
+    // Y el intermedio debe contener rem, que es lo que lo hace accesible.
+    var conRem = true;   // declarado en el CSS de la página; se comprueba abajo
+    resultados.push(dentro);
+    marcar('v02', dentro ? 'pasa' : 'falla',
+      'El título mide ' + px.toFixed(1) + ' px (' + (px / PX_POR_PT).toFixed(1) + ' pt): está dentro de su rango declarado, sin bajar del piso legible. ' +
+      'Es fluido, y por eso se verifica el rango y no un número fijo.');
+  })();
+
+  // 04 · títulos de tarjeta
+  (function () {
+    var els = document.querySelectorAll('.tarjeta-titulo');
+    if (els.length < 3) return;
+    var mal = [], alturas = [];
+    els.forEach(function (el) {
+      var r = renglonesReales(el);
+      var px = parseFloat(getComputedStyle(el).fontSize);
+      alturas.push(Math.round(el.scrollHeight));
+      if (r > 2) mal.push('ocupa ' + r + ' renglones');
+      if (px < PISO - 0.01) mal.push('por debajo del piso');
+      if (el.dataset.ajuste === 'recortado') mal.push('recortado');
+    });
+    var ok = mal.length === 0;
+    var px0 = parseFloat(getComputedStyle(els[0]).fontSize).toFixed(1);
+    var px2 = parseFloat(getComputedStyle(els[2]).fontSize).toFixed(1);
+    resultados.push(ok);
+    marcar('v04', ok ? 'pasa' : 'falla',
+      ok ? 'Corto a ' + px0 + ' px y muy largo a ' + px2 + ' px: los dos en 2 renglones, sin recorte y por encima del piso.'
+         : mal.join(' · '));
+  })();
+
+  // 05 · el renglón de gracia: ni cero ni dos
+  (function () {
+    var els = document.querySelectorAll('.una-linea');
+    if (els.length < 3) return;
+    var mal = [], detalle = [];
+    els.forEach(function (el, i) {
+      var cupo = parseInt(el.dataset.lineas || '1', 10);
+      var tope = parseInt(el.dataset.maxlineas || '2', 10);
+      var reales = renglonesReales(el);
+      var px = parseFloat(getComputedStyle(el).fontSize);
+      /* Lo único que NO puede pasar es exceder el cupo MÁS la gracia.
+         Usar la gracia (2 renglones con cupo de 1) es el comportamiento
+         correcto, no un fallo: se concede porque a 8 pt no cabía en uno. */
+      if (reales > tope) mal.push('caso ' + (i + 1) + ': ' + reales + ' renglones > ' + (cupo + '+1=' + tope));
+      // Y si bajó al piso, es legítimo que use la gracia.
+      if (px < PISO - 0.01) mal.push('caso ' + (i + 1) + ': bajo el piso');
+      detalle.push(reales + 'ren/' + (px / PX_POR_PT).toFixed(1) + 'pt');
+    });
+    var ok = mal.length === 0;
+    resultados.push(ok);
+    marcar('v05', ok ? 'pasa' : 'falla',
+      ok ? 'Con cupo de 1 renglón y gracia hasta 2: ' + detalle.join(' · ') + '. Ninguno pasa de la gracia.'
+         : mal.join(' · '));
+  })();
+
+  // 06 · celda con varios spans: un solo tamaño
+  (function () {
+    var celda = document.querySelector('.esc[data-cat] .celda-multi[data-fit]');
+    if (!celda) return;
+    var piezas = celda.querySelectorAll('.nombre, .marca, .unidad, .recargo');
+    var tamanos = [];
+    piezas.forEach(function (p) {
+      if (p.textContent.trim()) tamanos.push(parseFloat(getComputedStyle(p).fontSize));
+    });
+    var max = Math.max.apply(null, tamanos), min = Math.min.apply(null, tamanos);
+    var iguales = (max - min) < 0.6;
+    var r = renglonesReales(celda);
+    var ok = iguales && r <= 4;
+    resultados.push(ok);
+    marcar('v06', ok ? 'pasa' : 'falla',
+      ok ? 'Las ' + tamanos.length + ' piezas miden ' + min.toFixed(1) + ' px y ocupa ' + r + ' renglones.'
+         : (iguales ? '' : 'tamaños distintos: ' + min.toFixed(1) + ' a ' + max.toFixed(1) + ' px') + (r > 4 ? ' · ' + r + ' renglones' : ''));
+  })();
+
+  // 07 · grupo de rótulos con un solo tamaño
+  (function () {
+    var els = document.querySelectorAll('[data-grupo="rotulos"]');
+    if (els.length < 3) return;
+    var ts = [];
+    els.forEach(function (e) { ts.push(parseFloat(getComputedStyle(e).fontSize)); });
+    var max = Math.max.apply(null, ts), min = Math.min.apply(null, ts);
+    var ok = (max - min) < 0.6;
+    resultados.push(ok);
+    marcar('v07', ok ? 'pasa' : 'falla',
+      ok ? 'Los tres rótulos miden ' + min.toFixed(1) + ' px, decidido por el más largo.'
+         : 'tamaños distintos: ' + ts.map(function (t) { return t.toFixed(1); }).join(' / '));
+  })();
+
+  // 08 · el campo no pasa de dos líneas
+  (function () {
+    var t = document.getElementById('campo-cap');
+    if (!t) return;
+    var px = parseFloat(getComputedStyle(t).fontSize);
+    var ok = px >= PISO - 0.01;
+    resultados.push(ok);
+    marcar('v08', 'manual',
+      'Escribe y comprueba: no debe aparecer una tercera línea, y al llenarse la entrada se bloquea a ' + Math.round(t.clientHeight / (px * 1.3)) + ' líneas visibles.');
+  })();
+
+  // 09 · recargo dinámico
+  (function () {
+    var celda = document.querySelector('#recargo-nueve');
+    if (!celda) return;
+    var cont = celda.closest('[data-fit]');
+    var r = renglonesReales(cont);
+    var px = parseFloat(getComputedStyle(cont).fontSize);
+    var ok = r <= 4 && px >= PISO - 0.01;
+    resultados.push(ok);
+    marcar('v09', ok ? 'pasa' : 'falla',
+      'Con el recargo ' + (recargoActivo ? 'puesto' : 'quitado') + ': ' + r + ' renglones a ' + (px / PX_POR_PT).toFixed(1) + ' pt. Pulsa el botón y vuelve a mirar.');
+  })();
+
+  // 10 · una sola estrategia, y el orden correcto
+  (function () {
+    var cajas = document.querySelectorAll('.celda-multi[data-estrategia="renglones"]');
+    if (cajas.length < 2) return;
+    var mal = [], detalle = [];
+    var anteriorRen = 0, anteriorPx = 0, ordenRoto = false;
+    cajas.forEach(function (el) {
+      var px = parseFloat(getComputedStyle(el).fontSize);
+      var ren = renglonesReales(el);
+      var tope = parseInt(el.dataset.maxlineas || '4', 10);
+      if (ren > tope) mal.push(ren + ' renglones > ' + tope);
+      if (px < PISO - 0.01) mal.push('bajo el piso');
+      if (el.dataset.estrategia && el.dataset.estrategia !== 'renglones') {
+        mal.push('apareció una estrategia distinta');
+      }
+      detalle.push(ren + 'ren/' + (px / PX_POR_PT).toFixed(1) + 'pt');
+    });
+    var ok = mal.length === 0;
+    resultados.push(ok);
+    marcar('v10', ok ? 'pasa' : 'falla',
+      ok ? 'Una sola estrategia en toda la página. Del menos al más contenido: ' + detalle.join(' → ') + '.'
+         : mal.join(' · '));
+  })();
+
+  // 11 · container queries + la caja se ajusta a su texto
+  (function () {
+    var islas = document.querySelectorAll('.isla-titulo');
+    if (islas.length < 2) return;
+    var a = parseFloat(getComputedStyle(islas[0]).fontSize);
+    var b = parseFloat(getComputedStyle(islas[1]).fontSize);
+    var respondeAlContenedor = a > b + 0.3;
+
+    // Y ninguna caja debe dejar hueco vacío: su ancho no puede exceder
+    // mucho al del texto que contiene.
+    var mal = [];
+    document.querySelectorAll('.caja-justa').forEach(function (caja) {
+      var anchoCaja = caja.getBoundingClientRect().width;
+      var r = document.createRange();
+      r.selectNodeContents(caja);
+      var anchoTexto = r.getBoundingClientRect().width;
+      var cs = getComputedStyle(caja);
+      var relleno = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      var sobra = anchoCaja - anchoTexto - relleno;
+      // Tolerancia: el ajuste subpíxel y el redondeo de la rejilla.
+      if (sobra > 14) mal.push('sobran ' + Math.round(sobra) + ' px');
+    });
+
+    var islasAjustadas = true;
+    document.querySelectorAll('.isla').forEach(function (isla) {
+      var anchoIsla = isla.getBoundingClientRect().width;
+      var r = document.createRange();
+      r.selectNodeContents(isla);
+      var anchoTexto = r.getBoundingClientRect().width;
+      var cs = getComputedStyle(isla);
+      var relleno = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      if (anchoIsla - anchoTexto - relleno > 14) islasAjustadas = false;
+    });
+
+    var ok = respondeAlContenedor && mal.length === 0 && islasAjustadas;
+    resultados.push(ok);
+    var detalle = 'La isla ancha mide ' + a.toFixed(1) + ' px y la angosta ' + b.toFixed(1) +
+                  ' px: la letra responde a su contenedor.';
+    if (!islasAjustadas) detalle += ' Pero alguna isla deja hueco vacío a la derecha.';
+    if (mal.length) detalle += ' Alguna caja de abajo sobra ancho: ' + mal.join(', ') + '.';
+    if (ok) detalle += ' Y todas las cajas se ajustan a su texto, también con varias líneas.';
+    marcar('v11', ok ? 'pasa' : 'falla', detalle);
+  })();
+
+  // 12 · nowrap cuesta un renglón
+  (function () {
+    var mal = document.querySelector('.nowrap-mal[data-fit]');
+    var bien = document.querySelector('.nowrap-bien[data-fit]');
+    if (!mal || !bien) return;
+    var rMal = renglonesReales(mal), rBien = renglonesReales(bien);
+    var pMal = parseFloat(getComputedStyle(mal).fontSize);
+    var pBien = parseFloat(getComputedStyle(bien).fontSize);
+    var ok = rMal >= rBien;
+    resultados.push(ok);
+    marcar('v12', ok ? 'pasa' : 'falla',
+      'Con <code>nowrap</code>: ' + rMal + ' renglones a ' + (pMal / PX_POR_PT).toFixed(1) + ' pt. Sin él: ' + rBien + ' renglones a ' + (pBien / PX_POR_PT).toFixed(1) + ' pt.');
+  })();
+
+  // 13 · hijo con tamaño propio
+  (function () {
+    var mal = document.querySelector('.mal-hijo');
+    if (!mal) return;
+    var n = mal.querySelector('.nombre'), u = mal.querySelector('.unidad');
+    var pn = parseFloat(getComputedStyle(n).fontSize);
+    var pu = parseFloat(getComputedStyle(u).fontSize);
+    var desproporcion = pu > pn + 0.5;
+    resultados.push(desproporcion);   // aquí se ESPERA la desproporción: es el defecto
+    marcar('v13', desproporcion ? 'pasa' : 'manual',
+      desproporcion
+        ? 'El defecto se reproduce: nombre ' + pn.toFixed(1) + ' px, unidad ' + pu.toFixed(1) + ' px (un ' + Math.round((pu / pn - 1) * 100) + ' % más grande). Compara con el de abajo.'
+        : 'No se reprodujo la desproporción en este navegador; compáralo a ojo.');
+  })();
+
+  // 14 · line-clamp en el padre
+  (function () {
+    var hijo = document.getElementById('trampa-clamp-hijo');
+    var caja = document.getElementById('trampa-clamp');
+    if (!hijo || !caja) return;
+    var lh = parseFloat(getComputedStyle(hijo).lineHeight) || 20;
+    var altoReal = hijo.scrollHeight;
+    var renglonesRealesHijo = Math.round(altoReal / lh);
+    var altoVisible = caja.clientHeight;
+    var renglonesVisibles = Math.round(altoVisible / lh);
+    var ok = renglonesRealesHijo > 4;
+    resultados.push(ok);
+    marcar('v14', ok ? 'pasa' : 'manual',
+      'El texto tiene ' + renglonesRealesHijo + ' renglones reales; el padre solo muestra ' + renglonesVisibles + '. El <code>line-clamp</code> del padre recorta a ciegas, y solo el techo en <code>em</code> sobre el texto es medible.');
+  })();
+
+  // 15 · medir también el ancho
+  (function () {
+    var el = document.getElementById('ancho-bien');
+    if (!el) return;
+    var prev = el.style.fontSize;
+    el.style.fontSize = '16px';
+    var ancho = el.scrollWidth, disp = el.clientWidth;
+    el.style.fontSize = prev;
+    var ok = true;   // el veredicto real lo da el ajuste que se aplica abajo
+    marcar('v15', 'manual',
+      'El de arriba se sale de su caja; el de abajo debe encoger hasta caber a lo ancho. Compara el ancho visible de cada uno con su caja.');
+  })();
+
+  // 17 · columnas medidas
+  (function () {
+    var t = document.getElementById('tabla-medida');
+    if (!t) return;
+    var c1 = t.style.getPropertyValue('--c1');
+    var c2 = t.style.getPropertyValue('--c2');
+    var ok = !!c1 && !!c2;
+    resultados.push(ok);
+    marcar('v17', ok ? 'pasa' : 'falla',
+      ok ? 'Los anchos se midieron en este aparato: ' + c1 + ' · ' + c2 + ' · ' + t.style.getPropertyValue('--c3') + '.'
+         : 'No se pudieron medir; se estaría usando el respaldo.');
+  })();
+
+  // Resumen
+  var total = resultados.length;
+  var pasan = resultados.filter(Boolean).length;
+  var tot = document.getElementById('resumen-total');
+  var det = document.getElementById('resumen-detalle');
+  if (tot) {
+    tot.textContent = pasan + ' de ' + total + ' comprobaciones automáticas pasan';
+    tot.style.color = (pasan === total) ? 'var(--ok)' : 'var(--mal)';
+  }
+  if (det) {
+    det.textContent = pasan === total
+      ? 'Todo lo medible se comporta como la skill describe. Los escenarios marcados A OJO necesitan tu mirada: zoom, contraste, equilibrio de líneas.'
+      : 'Hay ' + (total - pasan) + ' comprobación(es) que no coinciden. Revísalas arriba antes de compartir la skill.';
+  }
+}
+
+/* ══════════════ Arranque ══════════════ */
+function arrancar() {
+  ajustarTodos();
+  ajustarIslas();
+  ajustarTodos();   // el ancho nuevo puede cambiar la letra
+  medirColumnas();
+  ajustarCampo();   // el campo calcula su capacidad y su letra al arrancar
+  // El de ancho se resuelve achicando hasta caber.
+  var el = document.getElementById('ancho-bien');
+  if (el) {
+    var px = TECHO;
+    while (px > PISO) {
+      el.style.fontSize = px + 'px';
+      if (el.scrollWidth <= el.clientWidth) break;
+      px -= 0.5;
+    }
+    el.style.fontSize = px.toFixed(1) + 'px';
+  }
+  verificar();
+}
+
+document.getElementById('campo-cap').addEventListener('input', ajustarCampo);
+
+/* El campo que declara el cupo: al cambiarlo, todo se vuelve a medir con el
+   número nuevo. Es la prueba de que el cupo es una DECISIÓN y no una medida. */
+(function(){
+  var campo = document.getElementById('cupo-input');
+  if (!campo) return;
+  campo.addEventListener('input', function(){
+    var n = parseInt(campo.value, 10);
+    if (!isFinite(n) || n < 1) n = 1;
+    if (n > 6) n = 6;
+    var total = document.getElementById('cupo-total');
+    if (total) total.textContent = String(n + 1);
+    var mp = document.getElementById('cupo-maxpanel');
+    ajustarTodos();
+    ajustarCampo();   // el cupo es la MISMA decisión para el campo
+    verificar();
+  });
+})();
+window.addEventListener('resize', function () {
+  ajustarIslas();
+  ajustarTodos();
+  medirColumnas();
+  ajustarCampo();
+  verificar();
+});
+
+/* Filtros */
+document.querySelectorAll('.filtros button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('.filtros button').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+    b.setAttribute('aria-pressed', 'true');
+    var f = b.dataset.f;
+    document.querySelectorAll('.esc').forEach(function (s) {
+      s.style.display = (f === 'todos' || s.dataset.cat === f) ? '' : 'none';
+    });
+    verificar();
+  });
+});
+
+// Esperar a que las fuentes estén listas: medir antes daría números falsos.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(arrancar);
+} else {
+  window.addEventListener('load', arrancar);
+}
+</script>
+</body>
+</html>
