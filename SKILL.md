@@ -307,6 +307,33 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
    - **A verification that expects a fixed pixel value will fail on a fluid `clamp()`.** `clamp(1.5rem, 1.25rem + 1.4vw, 2.25rem)` measures 16 px inside a narrow container and 36 px in a wide one; both are correct. Assert that the result lies **inside the declared range**, never that it equals a number. A range check also keeps the real invariant visible: the text never drops below the legibility floor.
    - **Photo-free assets are still worth verifying in a real browser.** Server-side rendering and DOM stubs do not implement `@container`, do not lay out fonts, and return constant heights. The four defects above are invisible to a harness that does not lay out a page; they cost one CDP session to find and would each have shipped as a "works on my machine" bug.
 
+   - **A TABLE COLUMN LEAVES AIR ON BOTH SIDES OF ITS TEXT, NOT ONLY BETWEEN COLUMNS.** A `column-gap` alone separates the *boxes*; it does not keep the glyphs off the border of the box the text lives in. The result reads as one continuous string of words: `|Quitar|Actualmente|Agrandar|` instead of `| Quitar | Actualmente | Agrandar |`. Measured on a real modal: with a 2 px gap and no padding, the tail of one label visually touched the head of the next, and two adjacent labels looked like a single broken word.
+
+     **The air belongs to the cell, as padding, and it must be symmetric:**
+
+     ```css
+     /* WRONG: separates the boxes, lets the text touch its own edges */
+     .row { column-gap: 2px; }
+
+     /* RIGHT: every cell pads its text on both sides */
+     .row { column-gap: .25rem; }               /* extra separation between boxes */
+     .row > .cell { padding-inline: .35em; }    /* air inside each cell */
+     ```
+
+     Between two adjacent cells the total air is then `padding + gap + padding`, which is what a reader perceives as a column boundary. Use `em` so the air grows with the font: with a large system font, fixed air is what makes columns look glued again exactly when it matters most.
+
+     **The first cell is the exception.** A cell that already sits against a visual edge (a thumbnail, a border, an icon) does not need padding on that side; give it air on the inner side only, or it will look indented relative to the row above.
+
+     **And the fitter must count the air.** Text is measured, not boxes: an `anchoTexto`-style range measurement returns the glyph run and ignores padding. Publish a column width from that raw number and the padding eats the last letters, so the label truncates — a new bug, in a different place, from the fix that added the air. Add it back from the element itself instead of retyping the number:
+
+     ```js
+     const cs = getComputedStyle(cell);
+     const aire = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+     naturalWidth += aire;
+     ```
+
+     Pay that cost out of the cells that need it least. When one column of a row carries the real content, the air comes from the short labeled controls' budget, never from the content column's: verify the content column keeps the same width before and after adding the air.
+
    - **Run the fit once per content change, never on `resize` or per frame.** Trigger it when the modal opens, when the content is replaced, and when the container width changes for a structural reason (breakpoint, rotation). A `resize` listener that re-fits on every frame forces a layout recalculation per frame and janks the scroll.
    - **Binary-search the size, do not step by 1 px.** Each measure forces layout. From 32 px down to 10.67 px, a linear walk costs over 21 measures; a binary search costs about 5. Write the loop to halve the interval.
    - Keep the fluid `rem` base as the source of truth: reset to it on every run (so text also grows back when content shortens), and clamp the result between the floor and the ceiling.
