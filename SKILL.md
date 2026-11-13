@@ -128,6 +128,8 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
      **Why this replaced the earlier two-strategy rule.** A previous version of this file declared `letters` (largest size wins, grace line included) legitimate for titles and descriptions, with the argument that box height was free there. That was wrong as a default: it makes row height depend on text length, so two sibling rows end up different heights by fractions of a point, and a list stops being scannable. The line budget is the design parameter — if a title deserves more room, declare a larger capacity for it; do not let the fitter spend a line nobody budgeted.
 
      **The declared capacity is the knob.** A role that needs more room says `lines: 3` or `lines: 4`, visibly, in one place. The fitter never invents capacity.
+
+     **And that one place is code, never the stylesheet.** A `line-clamp` in CSS is a second, invisible knob for the same decision — and the tempting place to reach for when a header truncates. If a text truncates, suspect its row in the capacity table before touching the CSS: it may be sharing the capacity of shorter siblings. See the rule below.
    - **When it does not fit at the floor, add a line and re-fit** — do not keep shrinking below the floor. The capacity is the design parameter; the floor is the accessibility limit. Growing N is the correct escape valve.
    - **WHEN THE CAPACITY IS UNKNOWN, ASK WITH `ask_user` BEFORE FITTING.** This is the rule that turns the whole skill from a technical contract into a workflow. Two situations, two behaviours:
 
@@ -188,7 +190,36 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
      }
      ```
      Verify the fit itself never repaints the row it measures, or the guard only hides an infinite loop.
-   - **A hard CSS clamp and the JS line budget must agree.** `line-clamp: N` in the stylesheet and `maxLines: N` in the fitter are two independent ceilings; raise one without the other and the CSS keeps cutting with dots while the JS believes the text fits, so the fix appears to do nothing. Change them in the same commit, and assert the equality in a test.
+   - **DO NOT WRITE THE LINE COUNT IN THE STYLESHEET. The CSS declares behavior; the capacity is declared once, in code.** `line-clamp: 2` in a stylesheet and `maxLines: 2` in the fitter are two independent ceilings that must stay in sync by hand. The moment they drift, the CSS keeps cutting with dots while the fitter believes the text fits, the fix appears to do nothing, and nobody connects the two lines because they live in different files.
+
+     Worse, the CSS one *silently overrides a decision that was made elsewhere*. Measured case: a column header of three words («Nombre del ingrediente», 22 characters) was fitted with the capacity belonging to its sibling one-word controls, so it got **one line** and rendered as «Nombre del ingre…». The instinctive fix was to add `-webkit-line-clamp: 2` to the header in CSS — which makes the header look right *and buries the real bug*. The real bug was in the capacity table: that header shared the `rotulo` entry (`lines: 1`) with the three controls. Adding CSS `2` would have hidden the error, and the day the header became three lines the CSS `2` would have blocked it with no trace of why.
+
+     **The split of responsibilities:**
+
+     | Layer | Declares | Never declares |
+     |---|---|---|
+     | CSS | behavior: may wrap or not, overflow handling, `display` | the number of lines |
+     | Code | the capacity, per role, in one visible table | how the text wraps |
+
+     ```css
+     /* WRONG: a second source of truth for the line count */
+     .col-header { -webkit-line-clamp: 2; line-clamp: 2; display: -webkit-box; }
+
+     /* RIGHT: only the behavior */
+     .col-header { white-space: normal; }
+     ```
+
+     ```js
+     // RIGHT: one place, visible, per role
+     const CAPACIDAD = {
+       rotulo:       { lineas: 1, maxLineas: 1 },   // Quitar / Actualmente / Agrandar
+       rotuloNombre: { lineas: 2, maxLineas: 2 },   // Nombre del ingrediente: three words
+     };
+     ```
+
+     **Two more traps this exposes.** First, `display: -webkit-box` in CSS fights the fitter: clipping with `text-overflow: ellipsis` needs `display: block`, and the fitter writes that itself — leave `display` alone and the CSS stops fighting it. Second, **a role must not inherit the capacity of its neighbors just because they share a row.** Check the capacity table when a header truncates; the CSS is almost never the cause.
+
+     **The consistency rule still applies, but per decision, not per row:** labels that share *one* decision (three one-word column headers) share a group and a size; a label with a *different* decision (a three-word header that needs two lines) gets its own entry even though it sits in the same row.
    - **`line-clamp` on a PARENT of a block element does nothing.** It counts line boxes of the element it is applied to, and a block child generates no line boxes for its parent: the ceiling exists in the stylesheet, not in the engine. The text grows to five or six lines while the CSS says «four». Put the ceiling on the element that actually holds the text.
 
      Prefer a **height** ceiling over a line count:
