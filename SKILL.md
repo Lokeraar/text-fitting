@@ -219,7 +219,19 @@ Scope: any component with a style block or utility classes, global CSS/Tailwind 
 
      **Two more traps this exposes.** First, `display: -webkit-box` in CSS fights the fitter: clipping with `text-overflow: ellipsis` needs `display: block`, and the fitter writes that itself — leave `display` alone and the CSS stops fighting it. Second, **a role must not inherit the capacity of its neighbors just because they share a row.** Check the capacity table when a header truncates; the CSS is almost never the cause.
 
-     **The consistency rule still applies, but per decision, not per row:** labels that share *one* decision (three one-word column headers) share a group and a size; a label with a *different* decision (a three-word header that needs two lines) gets its own entry even though it sits in the same row.
+     **Labels that share a row share ONE decision.** It is tempting to reason the other way — «this header is three words, it needs its own capacity» — and it backfires every time. Measured on a real screen: the three-word header was pulled into its own group and fitted alone against its column, so it grew to the 16 pt ceiling while the three one-word labels beside it shrank to fit. Four labels on one line, two sizes, and the owner saw it instantly: «desproporcionado con el resto de la fila». The fix was not per-label sizing back; it was **one group, one capacity, sized by the longest label**, and then letting the column layout absorb the cost.
+
+     **So the rule inverts the intuition:** the number of lines is a property of the *row*, not of the label. If the longest label needs two lines, every label in that row declares two lines — and the group still renders at a single size, the most restrictive one. Splitting the group to spare a short label a line is always the wrong trade.
+   - **An `inline` element cannot be fitted: give it a box first.** This is the quietest failure in the whole skill, because the fitter runs, reports success, and changes nothing. An inline `<span>` is exactly as wide as its own text, so «does not fit» is never true and there is nothing to shrink. Measured on a real menu: the entry for the sidebar label had been declared for months and never fired once. The CSS that unlocks it:
+     ```css
+     .item > span { flex: 1 1 auto; min-width: 0; }
+     ```
+     `flex: 1 1 auto` gives the label the width left by the icon; `min-width: 0` is what actually lets a flex item shrink below its content size — without it the label pushes the row wider instead of shrinking, and it looks like the fitter is broken when the layout is. **Whenever a fitted element "ignores" the fit, check `display` and the flex `min-width` before touching the capacity table.**
+
+   - **Pick the strategy by which resource is scarce, and pass it all the way down.** Two strategies exist and they disagree on purpose: `'letra'` maximises font size and will spend the grace line to get it; `'renglones'` exhausts the font size before growing a line. A sidebar is a fixed-height list where one extra line per item breaks the rhythm — that is `'renglones'`. Measured difference on the same string and width: `'letra'` gave **two lines at 21.33 px**, `'renglones'` gave **one line at 18 px**. Only the second matched the request «one row per option».
+
+     **The trap is silent propagation.** The public helpers accepted `estrategia` in their options object and dropped it when building the capacity, so a caller asking for `'renglones'` silently got the default. Nothing throws; the call simply does something else. After adding a capacity knob, assert in a test that it reaches the engine — not that the option was written.
+
    - **`line-clamp` on a PARENT of a block element does nothing.** It counts line boxes of the element it is applied to, and a block child generates no line boxes for its parent: the ceiling exists in the stylesheet, not in the engine. The text grows to five or six lines while the CSS says «four». Put the ceiling on the element that actually holds the text.
 
      Prefer a **height** ceiling over a line count:
